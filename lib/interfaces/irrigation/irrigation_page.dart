@@ -5,6 +5,7 @@ import 'irrigation_models.dart';
 import 'lancer_irrigation_page.dart';
 import 'historique_humidite_page.dart';
 import 'historique_irrigation_page.dart';
+import '../tableau_de_bord/notifications_page.dart';
 import 'programmation_page.dart';
 
 class IrrigationScreen extends StatefulWidget {
@@ -37,7 +38,13 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
           if (alertes > 0)
             Stack(children: [
               IconButton(
-                onPressed: () {},
+                //onPressed: () {},
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+        builder: (_) => const NotificationsScreen(),
+  ),
+),
                 icon: Container(
                   width: 34, height: 34,
                   decoration: BoxDecoration(
