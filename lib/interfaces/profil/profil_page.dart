@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+import 'package:provider/provider.dart';
 import '../../app_colors.dart';
 import '../../widget.dart';
 import 'modifier_profil_page.dart';
@@ -16,6 +18,8 @@ class _ProfilScreenState extends State<ProfilScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth= context.watch<AuthService>();
+    final user= auth.user;
     
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -67,19 +71,23 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Kouam Njankou',
+                  /*const Text(
+                    'Kouam Njankou',*/
+                  Text(
+                    user?.nomComplet ?? 'Utilisateur',  
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w500,
                         color: AppColors.text),
                   ),
-                  const Text(
-                    'Agriculteur · Dschang, Cameroun',
+                  /*const Text(
+                    'Agriculteur · Dschang, Cameroun',*/
+                    Text(
+                      '${user?.profession ??'Profession'} . Cameroun',
                     style: TextStyle(
                         fontSize: 13, color: AppColors.textMuted),
                   ),
-                  const SizedBox(height: 12),
+                  //const SizedBox(height: 12),
                   /*OutlinedButton.icon(
                     onPressed: () => Navigator.push(
                       context,
@@ -262,11 +270,17 @@ AppCard(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            
             child: const Text('Annuler',
                 style: TextStyle(color: AppColors.textMuted)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            //onPressed: () => Navigator.pop(context),
+            onPressed:() async {
+              Navigator.pop(context);
+
+              await context.read<AuthService>().logout();
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.red600,
               foregroundColor: AppColors.white,

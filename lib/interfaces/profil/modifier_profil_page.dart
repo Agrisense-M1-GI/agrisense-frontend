@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../../app_colors.dart';
+import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
 
 class ModifierProfilScreen extends StatefulWidget {
   const ModifierProfilScreen({super.key});
@@ -12,12 +14,18 @@ class ModifierProfilScreen extends StatefulWidget {
 class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _nomController = TextEditingController(text: 'Kouam');
+  /*final _nomController = TextEditingController(text: 'Kouam');
   final _prenomController = TextEditingController(text: 'Njankou');
   final _emailController = TextEditingController(text: 'kouam.njankou@agrisense.cm');
   final _telController = TextEditingController(text: '+237 677 123 456');
   final _villeController = TextEditingController(text: 'Dschang');
-  final _regionController = TextEditingController(text: 'Ouest, Cameroun');
+  final _regionController = TextEditingController(text: 'Ouest, Cameroun');*/
+  late final TextEditingController _nomController;
+  late final TextEditingController _prenomController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _telController;
+  late final TextEditingController _villeController;
+  late final TextEditingController _regionController;
 
   String _selectedMetier = 'Agriculteur';
   final List<String> _metiers = [
@@ -41,7 +49,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
     super.dispose();
   }
 
-  Future<void> _save() async {
+  /*Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     await Future.delayed(const Duration(seconds: 1));
@@ -59,7 +67,71 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
       Navigator.pop(context);
     }
   }
+*/
+Future<void> _save() async {
+  if (!_formKey.currentState!.validate()) return;
 
+  setState(() => _isSaving = true);
+
+  final auth = context.read<AuthService>();
+
+  final success = await auth.updateMe(
+    nom: _nomController.text,
+    prenom: _prenomController.text,
+    email: _emailController.text,
+    profession: _selectedMetier,
+  );
+
+  setState(() => _isSaving = false);
+
+  if (!mounted) return;
+
+  if (success) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Profil mis à jour avec succès !'),
+        backgroundColor: AppColors.green700,
+      ),
+    );
+
+    Navigator.pop(context);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          auth.errorMessage ?? 'Erreur de mise à jour',
+        ),
+        backgroundColor: AppColors.red600,
+      ),
+    );
+  }
+}
+@override
+void initState() {
+  super.initState();
+
+  final user = context.read<AuthService>().user;
+
+  _nomController =
+      TextEditingController(text: user?.nom ?? '');
+
+  _prenomController =
+      TextEditingController(text: user?.prenom ?? '');
+
+  _emailController =
+      TextEditingController(text: user?.email ?? '');
+  _telController =
+      TextEditingController();
+
+  _villeController =
+      TextEditingController();
+
+  _regionController =
+      TextEditingController();
+
+  _selectedMetier =
+      user?.profession ?? 'Agriculteur';
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(

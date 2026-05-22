@@ -33,8 +33,8 @@ class DashboardScreen extends StatelessWidget {
             child: CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.green200,
-              child: const Text(
-                'KN',
+              child:  const Text(
+                'US',
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,

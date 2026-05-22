@@ -1,8 +1,12 @@
+import 'package:agrisense/models/champ.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
 import '../../app_colors.dart';
 import '../../widget.dart';
 import 'detail_capteur_page.dart';
 import 'parametre_champ_page.dart';
+import '../../services/champ_service.dart';
+
 
 class CarteScreen extends StatefulWidget {
   const CarteScreen({super.key});
@@ -14,7 +18,7 @@ class CarteScreen extends StatefulWidget {
 class _CarteScreenState extends State<CarteScreen> {
   int _selectedCapteur = 0;
 
-  final List<Map<String, dynamic>> capteurs = [
+  /*final List<Map<String, dynamic>> capteurs = [
     {'id': 'C1', 'zone': 'Zone A', 'humidite': 74, 'batterie': 87, 'statut': 'actif',    'surface': '0.8 ha', 'lat': 0.12, 'lng': 0.18},
     {'id': 'C2', 'zone': 'Zone A', 'humidite': 69, 'batterie': 72, 'statut': 'actif',    'surface': '0.7 ha', 'lat': 0.30, 'lng': 0.38},
     {'id': 'C3', 'zone': 'Zone B', 'humidite': 48, 'batterie': 18, 'statut': 'alerte',   'surface': '1.1 ha', 'lat': 0.10, 'lng': 0.62},
@@ -23,8 +27,24 @@ class _CarteScreenState extends State<CarteScreen> {
     {'id': 'C6', 'zone': 'Zone C', 'humidite': 77, 'batterie': 63, 'statut': 'actif',    'surface': '0.8 ha', 'lat': 0.72, 'lng': 0.42},
     {'id': 'C7', 'zone': 'Zone D', 'humidite': 65, 'batterie': 22, 'statut': 'batterie', 'surface': '0.9 ha', 'lat': 0.58, 'lng': 0.68},
     {'id': 'C8', 'zone': 'Zone D', 'humidite': 0,  'batterie': 0,  'statut': 'inactif',  'surface': '0.5 ha', 'lat': 0.78, 'lng': 0.80},
-  ];
+  ];*/
+  List<ChampModel> champs=[];
+  bool isLoading = true;
 
+ Future<void> loadChamps() async {
+  try {
+    final service = context.read<ChampService>();
+
+    final result = await service.getChamps();
+
+    setState(() {
+      champs = result;
+      isLoading = false;
+    });
+  } catch (e) {
+    setState(() => isLoading = false);
+  }
+}
   Color _couleurStatut(String s) {
     switch (s) {
       case 'actif':    return AppColors.green600;
@@ -71,7 +91,7 @@ class _CarteScreenState extends State<CarteScreen> {
         actions: [
           IconButton(
             onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ParametreChampScreen())),
+                MaterialPageRoute(builder: (_) => ParametreChampScreen())),
             icon: Container(
               width: 34, height: 34,
               decoration: BoxDecoration(

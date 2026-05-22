@@ -15,6 +15,7 @@ class AuthService extends ChangeNotifier {
   // ── Clés SharedPreferences ─────────────────────────────────
   static const String _keyToken = 'agrisense_jwt_token';
   static const String _keyUser  = 'agrisense_user';
+  static const bool devMode=true;
 
   // ── Getters publics ────────────────────────────────────────
   UserModel? get user        => _user;
@@ -37,7 +38,10 @@ class AuthService extends ChangeNotifier {
   // ══════════════════════════════════════════════════════════
   // INITIALISATION — à appeler au démarrage de l'app
   // ══════════════════════════════════════════════════════════
-  Future<void> init() async {
+  /*Future<void> init() async {
+    _isLoading = true;
+    notifyListeners();
+
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_keyToken);
     final userJson = prefs.getString(_keyUser);
@@ -52,7 +56,56 @@ class AuthService extends ChangeNotifier {
         await _clearSession();
       }
     }
+    
+
+    _isLoading = false;
+    notifyListeners();
+  }*/
+  Future<void> init() async {
+  _isLoading = true;
+  notifyListeners();
+
+  // ── MODE DEV : bypass login ─────────────────────────────
+  if (devMode) {
+    _user = const UserModel(
+      id: '1',
+      email: 'kouam.njankou@agrisense.cm',
+      nom: 'Kouam',
+      prenom: 'Njankou',
+      profession: 'Agriculteur',
+      statut: 'actif',
+      createdAt: '2026-01-01',
+    );
+
+    _token = 'dev-token';
+
+    _isLoading = false;
+    notifyListeners();
+    return;
   }
+
+  // ── MODE NORMAL ─────────────────────────────────────────
+  final prefs = await SharedPreferences.getInstance();
+
+  _token = prefs.getString(_keyToken);
+
+  final userJson = prefs.getString(_keyUser);
+
+  if (userJson != null && _token != null) {
+    try {
+      _user = UserModel.fromJson(
+        jsonDecode(userJson) as Map<String, dynamic>,
+      );
+
+      await _verifierToken();
+    } catch (_) {
+      await _clearSession();
+    }
+  }
+
+  _isLoading = false;
+  notifyListeners();
+}
 
   // ══════════════════════════════════════════════════════════
   // INSCRIPTION — POST /auth/register
