@@ -1,50 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../app_colors.dart';
+import '../../models/champ.dart';
+import '../../services/champ_service.dart';
 
 class ParametreChampScreen extends StatefulWidget {
-  const ParametreChampScreen({super.key});
+  // champ est maintenant optionnel : null = mode démo (données statiques)
+  final ChampModel? champ;
+
+  const ParametreChampScreen({super.key, this.champ});
 
   @override
   State<ParametreChampScreen> createState() => _ParametreChampScreenState();
 }
 
 class _ParametreChampScreenState extends State<ParametreChampScreen> {
-  // Infos champ
-  final _nomController = TextEditingController(text: 'Champ Nord');
-  final _surfaceController = TextEditingController(text: '4.2');
-  final _zonesController = TextEditingController(text: '4');
+  late TextEditingController _nomController;
+  late TextEditingController _surfaceController;
+  late TextEditingController _zonesController;
 
-  // Culture
   String _culture = 'Maïs';
-  String _stade = 'Croissance';
+  String _stade   = 'Croissance';
   final List<String> _cultures = ['Maïs', 'Manioc', 'Haricot', 'Tomate', 'Plantain', 'Autre'];
-  final List<String> _stades = ['Semis', 'Croissance', 'Floraison', 'Récolte'];
+  final List<String> _stades   = ['Semis', 'Croissance', 'Floraison', 'Récolte'];
 
-  // Seuil humidité
   double _seuilHumidite = 60;
-  bool _notifPush = true;
-  bool _notifSms = false;
-  bool _alerteAuto = true;
+  bool _notifPush    = true;
+  bool _notifSms     = false;
+  bool _alerteAuto   = true;
   bool _irrigationAuto = true;
+  bool _isSaving     = false;
 
-  bool _isSaving = false;
+  // Indique si un vrai backend est disponible
+  bool get _avecBackend => widget.champ != null;
 
-  Future<void> _save() async {
-    setState(() => _isSaving = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    setState(() => _isSaving = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Paramètres enregistrés avec succès !'),
-          backgroundColor: AppColors.green700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-      Navigator.pop(context);
-    }
+  @override
+  void initState() {
+    super.initState();
+    // Pré-remplit avec les données du modèle si disponibles,
+    // sinon avec les valeurs statiques de démo
+    _nomController     = TextEditingController(text: widget.champ?.nom       ?? 'Champ Nord');
+    _surfaceController = TextEditingController(text: widget.champ?.superficie?.toString() ?? '4.2');
+    _zonesController   = TextEditingController(text: '4');
   }
 
   @override
@@ -55,6 +52,53 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
     super.dispose();
   }
 
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+
+    try {
+      if (_avecBackend) {
+        // Vrai appel API
+        final service = context.read<ChampService>();
+        await service.updateChamp(
+          id: widget.champ!.id,
+          data: {
+            'nom':         _nomController.text.trim(),
+            'description': 'Champ agricole',
+            'localisation': 'Cameroun',
+            'superficie':  double.tryParse(_surfaceController.text) ?? 0,
+            'latitude':    widget.champ!.latitude  ?? 0,
+            'longitude':   widget.champ!.longitude ?? 0,
+          },
+        );
+      } else {
+        // Mode démo : on simule une sauvegarde
+        await Future.delayed(const Duration(milliseconds: 700));
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_avecBackend
+                ? 'Champ mis à jour avec succès !'
+                : 'Paramètres enregistrés (mode démo)'),
+            backgroundColor: AppColors.green700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
+    }
+
+    setState(() => _isSaving = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,6 +106,23 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
       appBar: AppBar(
         title: const Text('Paramètres du champ'),
         actions: [
+          // Badge mode démo
+          if (!_avecBackend)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.amber100,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.amber600, width: 0.5),
+                  ),
+                  child: const Text('Démo',
+                      style: TextStyle(fontSize: 10, color: AppColors.amber600, fontWeight: FontWeight.w500)),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: TextButton(
@@ -103,38 +164,31 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
                             end: Alignment.bottomRight,
                           ),
                         ),
-                        child: const Center(
-                            child: Icon(Icons.landscape,
-                                color: Colors.white54, size: 48)),
+                        child: const Center(child: Icon(Icons.landscape, color: Colors.white54, size: 48)),
                       ),
                     ),
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.45)
-                            ],
+                            colors: [Colors.transparent, Colors.black.withOpacity(0.45)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ),
                         ),
                       ),
                     ),
-                    const Positioned(
+                    Positioned(
                       bottom: 12, left: 14,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Champ Nord',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600)),
-                          Text('Dschang, Cameroun',
-                              style: TextStyle(
-                                  color: Colors.white70, fontSize: 12)),
+                          Text(
+                            _nomController.text.isNotEmpty ? _nomController.text : 'Champ Nord',
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          const Text('Dschang, Cameroun',
+                              style: TextStyle(color: Colors.white70, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -149,32 +203,13 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
             _SectionHeader(title: 'Identité du champ'),
             _FormCard(
               children: [
-                _FormField(
-                  label: 'Nom du champ',
-                  controller: _nomController,
-                  icon: Icons.agriculture,
-                ),
+                _FormField(label: 'Nom du champ',  controller: _nomController,     icon: Icons.agriculture),
                 const _FieldDivider(),
                 Row(
                   children: [
-                    Expanded(
-                      child: _FormField(
-                        label: 'Surface (ha)',
-                        controller: _surfaceController,
-                        icon: Icons.straighten,
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    Container(
-                        width: 0.5, height: 48, color: const Color(0xFFF0F5EB)),
-                    Expanded(
-                      child: _FormField(
-                        label: 'Nb. zones',
-                        controller: _zonesController,
-                        icon: Icons.grid_view,
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
+                    Expanded(child: _FormField(label: 'Surface (ha)', controller: _surfaceController, icon: Icons.straighten, keyboardType: TextInputType.number)),
+                    Container(width: 0.5, height: 48, color: const Color(0xFFF0F5EB)),
+                    Expanded(child: _FormField(label: 'Nb. zones',    controller: _zonesController,   icon: Icons.grid_view,  keyboardType: TextInputType.number)),
                   ],
                 ),
               ],
@@ -192,41 +227,27 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Culture principale',
-                          style: TextStyle(
-                              fontSize: 11, color: AppColors.textMuted)),
+                          style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
                       const SizedBox(height: 8),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 8, runSpacing: 8,
                         children: _cultures.map((c) {
                           final sel = _culture == c;
                           return GestureDetector(
                             onTap: () => setState(() => _culture = c),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 7),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                               decoration: BoxDecoration(
-                                color: sel
-                                    ? AppColors.green100
-                                    : AppColors.bg,
+                                color: sel ? AppColors.green100 : AppColors.bg,
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: sel
-                                      ? AppColors.green600
-                                      : AppColors.border,
-                                  width: sel ? 1.5 : 0.5,
-                                ),
+                                border: Border.all(color: sel ? AppColors.green600 : AppColors.border, width: sel ? 1.5 : 0.5),
                               ),
                               child: Text(c,
                                   style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: sel
-                                          ? FontWeight.w500
-                                          : FontWeight.normal,
-                                      color: sel
-                                          ? AppColors.green700
-                                          : AppColors.textMuted)),
+                                      fontWeight: sel ? FontWeight.w500 : FontWeight.normal,
+                                      color: sel ? AppColors.green700 : AppColors.textMuted)),
                             ),
                           );
                         }).toList(),
@@ -235,8 +256,7 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
                       const _FieldDivider(),
                       const SizedBox(height: 8),
                       const Text('Stade de croissance',
-                          style: TextStyle(
-                              fontSize: 11, color: AppColors.textMuted)),
+                          style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
                       const SizedBox(height: 8),
                       Row(
                         children: _stades.map((s) {
@@ -246,32 +266,19 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
                               onTap: () => setState(() => _stade = s),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 180),
-                                margin: EdgeInsets.only(
-                                    right: s != _stades.last ? 6 : 0),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 8),
+                                margin: EdgeInsets.only(right: s != _stades.last ? 6 : 0),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: sel
-                                      ? AppColors.green100
-                                      : AppColors.bg,
+                                  color: sel ? AppColors.green100 : AppColors.bg,
                                   borderRadius: BorderRadius.circular(9),
-                                  border: Border.all(
-                                    color: sel
-                                        ? AppColors.green600
-                                        : AppColors.border,
-                                    width: sel ? 1.5 : 0.5,
-                                  ),
+                                  border: Border.all(color: sel ? AppColors.green600 : AppColors.border, width: sel ? 1.5 : 0.5),
                                 ),
                                 child: Text(s,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: sel
-                                            ? FontWeight.w500
-                                            : FontWeight.normal,
-                                        color: sel
-                                            ? AppColors.green700
-                                            : AppColors.textMuted)),
+                                        fontWeight: sel ? FontWeight.w500 : FontWeight.normal,
+                                        color: sel ? AppColors.green700 : AppColors.textMuted)),
                               ),
                             ),
                           );
@@ -286,7 +293,7 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Seuil d'humidité ──────────────────────────────────────────
+            // ── Seuil & alertes ───────────────────────────────────────────
             _SectionHeader(title: 'Seuil & alertes'),
             _FormCard(
               children: [
@@ -302,123 +309,62 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Seuil d\'humidité critique',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.text)),
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.text)),
                               Text('En dessous → alerte déclenchée',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textMuted)),
+                                  style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: AppColors.green100,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${_seuilHumidite.round()}%',
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.green700),
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(color: AppColors.green100, borderRadius: BorderRadius.circular(20)),
+                            child: Text('${_seuilHumidite.round()}%',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.green700)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      // Slider coloré
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 6,
-                          thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 10),
-                          overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 20),
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
                           activeTrackColor: _seuilColor(),
                           inactiveTrackColor: const Color(0xFFE8EDE4),
                           thumbColor: _seuilColor(),
                           overlayColor: _seuilColor().withOpacity(0.15),
                         ),
                         child: Slider(
-                          value: _seuilHumidite,
-                          min: 20,
-                          max: 90,
-                          divisions: 70,
-                          onChanged: (v) =>
-                              setState(() => _seuilHumidite = v),
+                          value: _seuilHumidite, min: 20, max: 90, divisions: 70,
+                          onChanged: (v) => setState(() => _seuilHumidite = v),
                         ),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('20%',
-                              style: TextStyle(
-                                  fontSize: 10, color: AppColors.textMuted)),
+                          const Text('20%', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
                           Text(
-                            _seuilHumidite < 40
-                                ? 'Zone critique'
-                                : _seuilHumidite < 65
-                                    ? 'Zone modérée'
-                                    : 'Zone sécurisée',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: _seuilColor()),
+                            _seuilHumidite < 40 ? 'Zone critique' : _seuilHumidite < 65 ? 'Zone modérée' : 'Zone sécurisée',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: _seuilColor()),
                           ),
-                          const Text('90%',
-                              style: TextStyle(
-                                  fontSize: 10, color: AppColors.textMuted)),
+                          const Text('90%', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
                         ],
                       ),
                     ],
                   ),
                 ),
-
                 const _FieldDivider(),
-
-                // Toggles alertes
-                _ToggleRow(
-                  icon: Icons.notifications_outlined,
-                  label: 'Notifications push',
-                  sub: 'Alertes en temps réel',
-                  value: _notifPush,
-                  onChanged: (v) => setState(() => _notifPush = v),
-                ),
+                _ToggleRow(icon: Icons.notifications_outlined, label: 'Notifications push',    sub: 'Alertes en temps réel',      value: _notifPush,     onChanged: (v) => setState(() => _notifPush     = v)),
                 const _FieldDivider(),
-                _ToggleRow(
-                  icon: Icons.sms_outlined,
-                  label: 'Alertes SMS',
-                  sub: 'Notification par message',
-                  value: _notifSms,
-                  onChanged: (v) => setState(() => _notifSms = v),
-                ),
+                _ToggleRow(icon: Icons.sms_outlined,           label: 'Alertes SMS',           sub: 'Notification par message',   value: _notifSms,      onChanged: (v) => setState(() => _notifSms      = v)),
                 const _FieldDivider(),
-                _ToggleRow(
-                  icon: Icons.warning_amber_outlined,
-                  label: 'Alertes automatiques',
-                  sub: 'Détection anomalies IA',
-                  value: _alerteAuto,
-                  onChanged: (v) => setState(() => _alerteAuto = v),
-                ),
+                _ToggleRow(icon: Icons.warning_amber_outlined,  label: 'Alertes automatiques',  sub: 'Détection anomalies IA',     value: _alerteAuto,    onChanged: (v) => setState(() => _alerteAuto    = v)),
                 const _FieldDivider(),
-                _ToggleRow(
-                  icon: Icons.water_drop_outlined,
-                  label: 'Irrigation automatique',
-                  sub: 'Déclenche selon le seuil',
-                  value: _irrigationAuto,
-                  onChanged: (v) => setState(() => _irrigationAuto = v),
-                  isLast: true,
-                ),
+                _ToggleRow(icon: Icons.water_drop_outlined,    label: 'Irrigation automatique', sub: 'Déclenche selon le seuil',   value: _irrigationAuto, onChanged: (v) => setState(() => _irrigationAuto = v), isLast: true),
               ],
             ),
 
             const SizedBox(height: 24),
 
-            // ── Bouton sauvegarder ────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -428,18 +374,11 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
                   foregroundColor: AppColors.white,
                   disabledBackgroundColor: AppColors.green200,
                   padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w500),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 ),
                 child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.white),
-                      )
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
                     : const Text('Enregistrer les paramètres'),
               ),
             ),
@@ -461,23 +400,17 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader({required this.title});
-
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(title.toUpperCase(),
-            style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textMuted,
-                letterSpacing: 0.8)),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textMuted, letterSpacing: 0.8)),
       );
 }
 
 class _FormCard extends StatelessWidget {
   final List<Widget> children;
   const _FormCard({required this.children});
-
   @override
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(
@@ -494,14 +427,7 @@ class _FormField extends StatelessWidget {
   final TextEditingController controller;
   final IconData icon;
   final TextInputType? keyboardType;
-
-  const _FormField({
-    required this.label,
-    required this.controller,
-    required this.icon,
-    this.keyboardType,
-  });
-
+  const _FormField({required this.label, required this.controller, required this.icon, this.keyboardType});
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
@@ -516,8 +442,7 @@ class _FormField extends StatelessWidget {
                 style: const TextStyle(fontSize: 14, color: AppColors.text),
                 decoration: InputDecoration(
                   labelText: label,
-                  labelStyle: const TextStyle(
-                      fontSize: 12, color: AppColors.textMuted),
+                  labelStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -531,11 +456,9 @@ class _FormField extends StatelessWidget {
 
 class _FieldDivider extends StatelessWidget {
   const _FieldDivider();
-
   @override
-  Widget build(BuildContext context) => const Divider(
-      height: 0.5, thickness: 0.5,
-      indent: 44, color: Color(0xFFF0F5EB));
+  Widget build(BuildContext context) =>
+      const Divider(height: 0.5, thickness: 0.5, indent: 44, color: Color(0xFFF0F5EB));
 }
 
 class _ToggleRow extends StatelessWidget {
@@ -543,26 +466,12 @@ class _ToggleRow extends StatelessWidget {
   final String label, sub;
   final bool value, isLast;
   final ValueChanged<bool> onChanged;
-
-  const _ToggleRow({
-    required this.icon,
-    required this.label,
-    required this.sub,
-    required this.value,
-    required this.onChanged,
-    this.isLast = false,
-  });
-
+  const _ToggleRow({required this.icon, required this.label, required this.sub, required this.value, required this.onChanged, this.isLast = false});
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          border: isLast
-              ? null
-              : const Border(
-                  bottom:
-                      BorderSide(color: Color(0xFFF0F5EB), width: 0.5)),
+          border: isLast ? null : const Border(bottom: BorderSide(color: Color(0xFFF0F5EB), width: 0.5)),
         ),
         child: Row(
           children: [
@@ -572,21 +481,12 @@ class _ToggleRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: const TextStyle(
-                          fontSize: 13, color: AppColors.text)),
-                  Text(sub,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textMuted)),
+                  Text(label, style: const TextStyle(fontSize: 13, color: AppColors.text)),
+                  Text(sub,   style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
                 ],
               ),
             ),
-            Switch(
-              value: value,
-              onChanged: onChanged,
-              activeColor: AppColors.green600,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+            Switch(value: value, onChanged: onChanged, activeColor: AppColors.green600, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
           ],
         ),
       );

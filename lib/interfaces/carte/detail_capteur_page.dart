@@ -1,40 +1,114 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../app_colors.dart';
 import '../../widget.dart';
+import 'package:http/http.dart' as http;
 
-class DetailCapteurScreen extends StatelessWidget {
+class DetailCapteurScreen extends StatefulWidget {
   final Map<String, dynamic> capteur;
-  const DetailCapteurScreen({super.key, required this.capteur});
 
+  const DetailCapteurScreen({
+    super.key,
+    required this.capteur,
+  });
+
+  @override
+  State<DetailCapteurScreen> createState() => _DetailCapteurScreenState();
+}
+
+class _DetailCapteurScreenState extends State<DetailCapteurScreen> {
+  Map<String, dynamic>? capteurData;
+  bool isLoading = true;
+  final String baseUrl = 'http://192.168.X.X:8000/api';
+
+  // Retourne les données chargées si disponibles, sinon les données passées en paramètre
+  Map<String, dynamic> get _capteur => capteurData ?? widget.capteur;
+
+  Future<void> fetchCapteur() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/capteurs/${widget.capteur['id']}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        setState(() {
+          capteurData = data;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          capteurData = widget.capteur;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        capteurData = widget.capteur;
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchCapteur();
+  }
+
+  // Les getters utilisent _capteur (données chargées ou fallback)
   Color get _couleur {
-    switch (capteur['statut']) {
-      case 'actif':    return AppColors.green600;
-      case 'alerte':   return AppColors.red600;
-      case 'batterie': return AppColors.amber600;
-      default:         return const Color(0xFFB4B2A9);
+    switch (_capteur['statut']) {
+      case 'actif':
+        return AppColors.green600;
+      case 'alerte':
+        return AppColors.red600;
+      case 'batterie':
+        return AppColors.amber600;
+      default:
+        return const Color(0xFFB4B2A9);
     }
   }
 
   Color get _bg {
-    switch (capteur['statut']) {
-      case 'actif':    return AppColors.green100;
-      case 'alerte':   return AppColors.red100;
-      case 'batterie': return AppColors.amber100;
-      default:         return AppColors.gray50;
+    switch (_capteur['statut']) {
+      case 'actif':
+        return AppColors.green100;
+      case 'alerte':
+        return AppColors.red100;
+      case 'batterie':
+        return AppColors.amber100;
+      default:
+        return AppColors.gray50;
     }
   }
 
   String get _label {
-    switch (capteur['statut']) {
-      case 'actif':    return 'Actif';
-      case 'alerte':   return 'Alerte humidité';
-      case 'batterie': return 'Batterie faible';
-      default:         return 'Inactif';
+    switch (_capteur['statut']) {
+      case 'actif':
+        return 'Actif';
+      case 'alerte':
+        return 'Alerte humidité';
+      case 'batterie':
+        return 'Batterie faible';
+      default:
+        return 'Inactif';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Affiche un loader pendant le chargement
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Utilise le getter _capteur (données chargées ou fallback)
+    final capteur = _capteur;
     final bool isAlerte = capteur['statut'] == 'alerte';
     final bool isBatterie = capteur['statut'] == 'batterie';
 
@@ -64,7 +138,7 @@ class DetailCapteurScreen extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     Image.network(
-                      _imageUrl(),
+                      _imageUrl(capteur),
                       fit: BoxFit.cover,
                       loadingBuilder: (_, child, progress) => progress == null
                           ? child
@@ -72,22 +146,31 @@ class DetailCapteurScreen extends StatelessWidget {
                               color: AppColors.green100,
                               child: const Center(
                                 child: CircularProgressIndicator(
-                                    color: AppColors.green600, strokeWidth: 2),
+                                  color: AppColors.green600,
+                                  strokeWidth: 2,
+                                ),
                               ),
                             ),
                       errorBuilder: (_, __, ___) => Container(
                         color: AppColors.green100,
                         child: const Center(
-                            child: Icon(Icons.grass,
-                                color: AppColors.green600, size: 60)),
+                          child: Icon(
+                            Icons.grass,
+                            color: AppColors.green600,
+                            size: 60,
+                          ),
+                        ),
                       ),
                     ),
                     // Badge zone
                     Positioned(
-                      top: 12, left: 12,
+                      top: 12,
+                      left: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(20),
@@ -95,31 +178,42 @@ class DetailCapteurScreen extends StatelessWidget {
                         child: Text(
                           '${capteur['id']} · ${capteur['zone']} · ${capteur['surface']}',
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500),
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
                     // Alerte overlay si critique
                     if (isAlerte)
                       Positioned(
-                        bottom: 12, left: 12,
+                        bottom: 12,
+                        left: 12,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.red600.withOpacity(0.88),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.warning_amber,
-                                  color: Colors.white, size: 13),
+                              Icon(
+                                Icons.warning_amber,
+                                color: Colors.white,
+                                size: 13,
+                              ),
                               SizedBox(width: 5),
-                              Text('Humidité critique !',
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 11)),
+                              Text(
+                                'Humidité critique !',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -137,19 +231,22 @@ class DetailCapteurScreen extends StatelessWidget {
                 _MetricTile(
                   icon: Icons.water_drop_outlined,
                   iconBg: isAlerte ? AppColors.red100 : AppColors.green100,
-                  iconColor: isAlerte ? AppColors.red600 : AppColors.green700,
+                  iconColor:
+                      isAlerte ? AppColors.red600 : AppColors.green700,
                   label: 'Humidité',
-                  value: '${capteur['humidite']}%',
-                  valueColor: isAlerte ? AppColors.red600 : AppColors.text,
+                  value: '${capteur['humidite'] ?? 0}%',
+                  valueColor:
+                      isAlerte ? AppColors.red600 : AppColors.text,
                 ),
                 const SizedBox(width: 9),
                 _MetricTile(
                   icon: Icons.battery_charging_full,
-                  iconBg: isBatterie ? AppColors.amber100 : AppColors.green100,
+                  iconBg:
+                      isBatterie ? AppColors.amber100 : AppColors.green100,
                   iconColor:
                       isBatterie ? AppColors.amber600 : AppColors.green700,
                   label: 'Batterie',
-                  value: '${capteur['batterie']}%',
+                  value: '${capteur['batterie'] ?? 0}%',
                   valueColor:
                       isBatterie ? AppColors.amber600 : AppColors.text,
                 ),
@@ -174,30 +271,40 @@ class DetailCapteurScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.red100,
                   borderRadius: BorderRadius.circular(13),
-                  border:
-                      Border.all(color: AppColors.red600.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppColors.red600.withOpacity(0.3),
+                  ),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded,
-                        color: AppColors.red600, size: 22),
-                    const SizedBox(width: 10),
-                    const Expanded(
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppColors.red600,
+                      size: 22,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Humidité critique détectée',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.red800)),
+                          Text(
+                            'Humidité critique détectée',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.red800,
+                            ),
+                          ),
                           SizedBox(height: 3),
                           Text(
-                              'Le taux d\'humidité est en dessous du seuil de 60%. Une irrigation immédiate est recommandée.',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.red800,
-                                  height: 1.4)),
+                            'Le taux d\'humidité est en dessous du seuil de 60%. '
+                            'Une irrigation immédiate est recommandée.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.red800,
+                              height: 1.4,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -214,30 +321,40 @@ class DetailCapteurScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.amber100,
                   borderRadius: BorderRadius.circular(13),
-                  border:
-                      Border.all(color: AppColors.amber600.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppColors.amber600.withOpacity(0.3),
+                  ),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.battery_alert,
-                        color: AppColors.amber600, size: 22),
-                    const SizedBox(width: 10),
-                    const Expanded(
+                    Icon(
+                      Icons.battery_alert,
+                      color: AppColors.amber600,
+                      size: 22,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Batterie faible',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.amber800)),
+                          Text(
+                            'Batterie faible',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.amber800,
+                            ),
+                          ),
                           SizedBox(height: 3),
                           Text(
-                              'La batterie du capteur est à 22%. Planifiez un rechargement dans les 48h.',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.amber800,
-                                  height: 1.4)),
+                            'La batterie du capteur est à 22%. '
+                            'Planifiez un rechargement dans les 48h.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.amber800,
+                              height: 1.4,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -255,26 +372,29 @@ class DetailCapteurScreen extends StatelessWidget {
                   SizedBox(
                     height: 90,
                     child: CustomPaint(
-                      painter: _MiniChartPainter(
-                          statut: capteur['statut']),
+                      painter: _MiniChartPainter(statut: capteur['statut']),
                       child: const SizedBox.expand(),
                     ),
                   ),
                   const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children:
-                        ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Auj']
-                            .map((d) => Text(d,
-                                style: TextStyle(
-                                    fontSize: 9,
-                                    color: d == 'Auj'
-                                        ? AppColors.green700
-                                        : AppColors.textMuted,
-                                    fontWeight: d == 'Auj'
-                                        ? FontWeight.w500
-                                        : FontWeight.normal)))
-                            .toList(),
+                    children: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Auj']
+                        .map(
+                          (d) => Text(
+                            d,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: d == 'Auj'
+                                  ? AppColors.green700
+                                  : AppColors.textMuted,
+                              fontWeight: d == 'Auj'
+                                  ? FontWeight.w500
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ],
               ),
@@ -287,12 +407,25 @@ class DetailCapteurScreen extends StatelessWidget {
             AppCard(
               child: Column(
                 children: [
-                  _InfoRow(label: 'Identifiant', value: capteur['id']),
-                  _InfoRow(label: 'Zone', value: capteur['zone']),
-                  _InfoRow(label: 'Surface couverte', value: capteur['surface']),
-                  _InfoRow(label: 'Dernière mesure', value: 'Il y a 3 min'),
-                  _InfoRow(label: 'Fréquence mesure', value: 'Toutes les 5 min'),
-                  _InfoRow(label: 'Modèle', value: 'AgriSensor Pro v2', isLast: true),
+                  _InfoRow(label: 'Identifiant', value: capteur['id'] ?? '—'),
+                  _InfoRow(label: 'Zone', value: capteur['zone'] ?? '—'),
+                  _InfoRow(
+                    label: 'Surface couverte',
+                    value: capteur['surface'] ?? '—',
+                  ),
+                  const _InfoRow(
+                    label: 'Dernière mesure',
+                    value: 'Il y a 3 min',
+                  ),
+                  const _InfoRow(
+                    label: 'Fréquence mesure',
+                    value: 'Toutes les 5 min',
+                  ),
+                  const _InfoRow(
+                    label: 'Modèle',
+                    value: 'AgriSensor Pro v2',
+                    isLast: true,
+                  ),
                 ],
               ),
             ),
@@ -305,18 +438,23 @@ class DetailCapteurScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () {},
                 icon: const Icon(Icons.water_drop, size: 16),
-                label: Text(isAlerte
-                    ? 'Lancer l\'irrigation sur ${capteur['zone']}'
-                    : 'Voir l\'historique complet'),
+                label: Text(
+                  isAlerte
+                      ? 'Lancer l\'irrigation sur ${capteur['zone']}'
+                      : 'Voir l\'historique complet',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor:
                       isAlerte ? AppColors.red600 : AppColors.green600,
                   foregroundColor: AppColors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   textStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
@@ -331,13 +469,15 @@ class DetailCapteurScreen extends StatelessWidget {
                 label: const Text('Prendre une image maintenant'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.green700,
-                  side: const BorderSide(
-                      color: AppColors.green600, width: 1.5),
+                  side: const BorderSide(color: AppColors.green600, width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   textStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
@@ -349,20 +489,22 @@ class DetailCapteurScreen extends StatelessWidget {
     );
   }
 
-  String _imageUrl() {
-    // Images de champs de maïs africains selon la zone
+  // Accepte explicitement le map capteur pour éviter toute ambiguïté
+  String _imageUrl(Map<String, dynamic> capteur) {
     final urls = [
       'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=700&q=80',
       'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=700&q=80',
       'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=700&q=80',
       'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=700&q=80',
     ];
-    final idx = int.tryParse(capteur['id'].replaceAll('C', '')) ?? 1;
+    final id = capteur['id'] as String? ?? 'C1';
+    final idx = int.tryParse(id.replaceAll('C', '')) ?? 1;
     return urls[(idx - 1) % urls.length];
   }
 }
 
 // ── Widgets internes ──────────────────────────────────────────────────────────
+
 class _MetricTile extends StatelessWidget {
   final IconData icon;
   final Color iconBg, iconColor, valueColor;
@@ -391,20 +533,27 @@ class _MetricTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 28, height: 28,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                  color: iconBg, borderRadius: BorderRadius.circular(8)),
+                color: iconBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Icon(icon, color: iconColor, size: 15),
             ),
             const SizedBox(height: 8),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    color: valueColor)),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 10, color: AppColors.textMuted)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: valueColor,
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+            ),
           ],
         ),
       ),
@@ -415,8 +564,12 @@ class _MetricTile extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label, value;
   final bool isLast;
-  const _InfoRow(
-      {required this.label, required this.value, this.isLast = false});
+
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    this.isLast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -426,19 +579,24 @@ class _InfoRow extends StatelessWidget {
         border: isLast
             ? null
             : const Border(
-                bottom: BorderSide(color: Color(0xFFF0F5EB), width: 0.5)),
+                bottom: BorderSide(color: Color(0xFFF0F5EB), width: 0.5),
+              ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 12, color: AppColors.textMuted)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.text)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.text,
+            ),
+          ),
         ],
       ),
     );
@@ -447,6 +605,7 @@ class _InfoRow extends StatelessWidget {
 
 class _MiniChartPainter extends CustomPainter {
   final String statut;
+
   const _MiniChartPainter({required this.statut});
 
   @override
@@ -480,9 +639,12 @@ class _MiniChartPainter extends CustomPainter {
     final pts = rawPts
         .asMap()
         .entries
-        .map((e) => Offset(
+        .map(
+          (e) => Offset(
             e.key * size.width / (rawPts.length - 1),
-            e.value * size.height))
+            e.value * size.height,
+          ),
+        )
         .toList();
 
     final linePath = Path()..moveTo(pts[0].dx, pts[0].dy);
@@ -499,27 +661,37 @@ class _MiniChartPainter extends CustomPainter {
       ..lineTo(pts.first.dx, size.height)
       ..close();
 
-    // Lignes grille
+    // Lignes de grille
     final gridPaint = Paint()
       ..color = const Color(0xFFE8EDE4)
       ..strokeWidth = 0.5;
     for (final y in [0.25, 0.5, 0.75]) {
       canvas.drawLine(
-          Offset(0, y * size.height), Offset(size.width, y * size.height),
-          gridPaint);
+        Offset(0, y * size.height),
+        Offset(size.width, y * size.height),
+        gridPaint,
+      );
     }
 
     canvas.drawPath(fillPath, fillPaint);
     canvas.drawPath(linePath, paint);
 
-    // Point final
-    canvas.drawCircle(pts.last, 4,
-        Paint()..color = color..style = PaintingStyle.fill);
-    canvas.drawCircle(pts.last, 4,
-        Paint()
-          ..color = AppColors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5);
+    // Point final (dernier relevé)
+    canvas.drawCircle(
+      pts.last,
+      4,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(
+      pts.last,
+      4,
+      Paint()
+        ..color = AppColors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
   }
 
   @override
