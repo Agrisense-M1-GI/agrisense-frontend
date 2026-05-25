@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app_colors.dart';
-import 'irrigation_models.dart';
+import '../../models/irrigation.dart';
 
 class LancerIrrigationScreen extends StatefulWidget {
   final String? zonePreselect;
