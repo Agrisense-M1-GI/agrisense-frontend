@@ -1,10 +1,9 @@
-// ============================================================
-// lib/auth/login_screen.dart
-// ============================================================
+// lib/auth/login_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
-import '../../app_colors.dart'; // AppColors
+import '../services/auth_service.dart';
+import '../app_colors.dart';
+import '../app_field.dart';
 import 'register_page.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,10 +15,10 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final _formKey     = GlobalKey<FormState>();
-  final _emailCtrl   = TextEditingController();
-  final _passwordCtrl= TextEditingController();
-  bool  _showPwd     = false;
+  final _formKey      = GlobalKey<FormState>();
+  final _emailCtrl    = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  bool  _showPwd      = false;
   late  AnimationController _anim;
   late  Animation<double>   _fadeAnim;
 
@@ -46,16 +45,35 @@ class _LoginScreenState extends State<LoginScreen>
 
     final auth    = context.read<AuthService>();
     final success = await auth.login(
-      email:    _emailCtrl.text,
+      email:    _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
     );
 
     if (!mounted) return;
 
-    if (!success && auth.errorMessage != null) {
+    if (success) {
+      // Message de bienvenue
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Bienvenue ${auth.user?.prenom ?? ""} !',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ]),
+          backgroundColor: AppColors.green600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(14),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      // L'AuthWrapper redirige automatiquement vers MainShell
+    } else if (auth.errorMessage != null) {
       _showError(auth.errorMessage!);
     }
-    // Si succès, l'AuthWrapper redirige automatiquement
   }
 
   void _showError(String message) {
@@ -69,8 +87,7 @@ class _LoginScreenState extends State<LoginScreen>
         ]),
         backgroundColor: AppColors.red600,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(14),
       ),
     );
@@ -125,78 +142,65 @@ class _LoginScreenState extends State<LoginScreen>
                             letterSpacing: -0.5)),
                     const SizedBox(height: 5),
                     const Text('Supervisez vos champs intelligemment',
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textMuted)),
+                        style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
                   ]),
                 ),
 
                 const SizedBox(height: 44),
 
-                // ── Titre formulaire ──────────────────────────────
                 const Text('Connexion',
                     style: TextStyle(fontSize: 22,
                         fontWeight: FontWeight.w600,
                         color: AppColors.text)),
                 const SizedBox(height: 4),
                 const Text('Accédez à votre tableau de bord',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textMuted)),
+                    style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
 
                 const SizedBox(height: 28),
 
-                // ── Formulaire ────────────────────────────────────
                 Form(
                   key: _formKey,
                   child: Column(children: [
-                    // Email
-                    _AppField(
-                      controller:  _emailCtrl,
-                      label:       'Adresse email',
-                      hint:        'votre@email.com',
-                      icon:        Icons.email_outlined,
-                      inputType:   TextInputType.emailAddress,
-                      validator:   (v) {
-                        if (v == null || v.isEmpty)
-                          return 'Email requis';
-                        if (!v.contains('@'))
-                          return 'Email invalide';
+
+                    AppField(
+                      controller: _emailCtrl,
+                      label:      'Adresse email',
+                      hint:       'votre@email.com',
+                      icon:       Icons.email_outlined,
+                      inputType:  TextInputType.emailAddress,
+                      validator:  (v) {
+                        if (v == null || v.isEmpty) return 'Email requis';
+                        if (!v.contains('@')) return 'Email invalide';
                         return null;
                       },
                     ),
 
                     const SizedBox(height: 14),
 
-                    // Mot de passe
-                    _AppField(
-                      controller:  _passwordCtrl,
-                      label:       'Mot de passe',
-                      hint:        '••••••••',
-                      icon:        Icons.lock_outline,
-                      obscure:     !_showPwd,
-                      suffixIcon:  IconButton(
+                    AppField(
+                      controller: _passwordCtrl,
+                      label:      'Mot de passe',
+                      hint:       '••••••••',
+                      icon:       Icons.lock_outline,
+                      obscure:    !_showPwd,
+                      suffixIcon: IconButton(
                         icon: Icon(
                           _showPwd
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: AppColors.textMuted,
-                          size: 20,
+                          color: AppColors.textMuted, size: 20,
                         ),
-                        onPressed: () =>
-                            setState(() => _showPwd = !_showPwd),
+                        onPressed: () => setState(() => _showPwd = !_showPwd),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty)
-                          return 'Mot de passe requis';
-                        if (v.length < 6)
-                          return 'Au moins 6 caractères';
+                        if (v == null || v.isEmpty) return 'Mot de passe requis';
+                        if (v.length < 6) return 'Au moins 6 caractères';
                         return null;
                       },
                     ),
 
                     const SizedBox(height: 28),
 
-                    // Bouton connexion
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -205,14 +209,12 @@ class _LoginScreenState extends State<LoginScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.green600,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              AppColors.green200,
+                          disabledBackgroundColor: AppColors.green200,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                           textStyle: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600),
+                              fontSize: 15, fontWeight: FontWeight.w600),
                         ),
                         child: auth.isLoading
                             ? const SizedBox(
@@ -220,13 +222,11 @@ class _LoginScreenState extends State<LoginScreen>
                                 child: CircularProgressIndicator(
                                     color: Colors.white, strokeWidth: 2))
                             : const Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text('Se connecter'),
                                   SizedBox(width: 8),
-                                  Icon(Icons.arrow_forward_rounded,
-                                      size: 18),
+                                  Icon(Icons.arrow_forward_rounded, size: 18),
                                 ],
                               ),
                       ),
@@ -236,10 +236,8 @@ class _LoginScreenState extends State<LoginScreen>
 
                 const SizedBox(height: 32),
 
-                // ── Séparateur ────────────────────────────────────
                 Row(children: [
-                  Expanded(child: Container(
-                      height: 0.5, color: AppColors.border)),
+                  Expanded(child: Container(height: 0.5, color: AppColors.border)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Text('ou',
@@ -247,25 +245,21 @@ class _LoginScreenState extends State<LoginScreen>
                             fontSize: 12,
                             color: AppColors.textMuted.withOpacity(0.7))),
                   ),
-                  Expanded(child: Container(
-                      height: 0.5, color: AppColors.border)),
+                  Expanded(child: Container(height: 0.5, color: AppColors.border)),
                 ]),
 
                 const SizedBox(height: 32),
 
-                // ── Lien inscription ──────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) => const RegisterScreen()),
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
                     ),
                     child: RichText(
                       text: const TextSpan(
                         text: 'Pas encore de compte ? ',
-                        style: TextStyle(
-                            fontSize: 13, color: AppColors.textMuted),
+                        style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                         children: [
                           TextSpan(
                             text: 'S\'inscrire',
@@ -281,22 +275,15 @@ class _LoginScreenState extends State<LoginScreen>
 
                 const SizedBox(height: 24),
 
-                // ── Illustration bas ──────────────────────────────
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _FeatureChip(
-                          icon: Icons.water_drop_outlined,
-                          label: 'Irrigation'),
+                      _FeatureChip(icon: Icons.water_drop_outlined, label: 'Irrigation'),
                       const SizedBox(width: 10),
-                      _FeatureChip(
-                          icon: Icons.sensors,
-                          label: 'Capteurs'),
+                      _FeatureChip(icon: Icons.sensors, label: 'Capteurs'),
                       const SizedBox(width: 10),
-                      _FeatureChip(
-                          icon: Icons.analytics_outlined,
-                          label: 'Analyses'),
+                      _FeatureChip(icon: Icons.analytics_outlined, label: 'Analyses'),
                     ],
                   ),
                 ),
@@ -311,81 +298,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-// ─── Champ de saisie réutilisable ─────────────────────────────────────────────
-class _AppField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label, hint;
-  final IconData icon;
-  final TextInputType? inputType;
-  final bool obscure;
-  final Widget? suffixIcon;
-  final String? Function(String?)? validator;
-
-  const _AppField({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    required this.icon,
-    this.inputType,
-    this.obscure = false,
-    this.suffixIcon,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller:   controller,
-      keyboardType: inputType,
-      obscureText:  obscure,
-      validator:    validator,
-      style: const TextStyle(fontSize: 14, color: AppColors.text),
-      decoration: InputDecoration(
-        labelText:     label,
-        hintText:      hint,
-        prefixIcon:    Icon(icon, color: AppColors.green600, size: 20),
-        suffixIcon:    suffixIcon,
-        labelStyle: const TextStyle(
-            fontSize: 13, color: AppColors.textMuted),
-        hintStyle: const TextStyle(
-            fontSize: 13, color: AppColors.textMuted),
-        filled:        true,
-        fillColor:     Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(
-              color: AppColors.border, width: 0.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(
-              color: AppColors.border, width: 0.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(
-              color: AppColors.green600, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(
-              color: AppColors.red600, width: 1),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(
-              color: AppColors.red600, width: 1.5),
-        ),
-        errorStyle: const TextStyle(
-            fontSize: 11, color: AppColors.red600),
-      ),
-    );
-  }
-}
-
-// ─── Feature chip ─────────────────────────────────────────────────────────────
 class _FeatureChip extends StatelessWidget {
   final IconData icon;
   final String label;

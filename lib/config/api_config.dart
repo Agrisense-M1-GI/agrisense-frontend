@@ -8,7 +8,7 @@ class ApiConfig {
   // static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   // Téléphone physique → utilise l'IP locale de ton PC
-  static const String baseUrl = 'http://192.168.1.100:8000/api';
+  static const String baseUrl = 'http://172.22.193.179:8080/api';
 
   // Production → remplace par ton domaine
   // static const String baseUrl = 'https://ton-domaine.com/api';

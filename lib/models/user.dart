@@ -34,6 +34,8 @@ class UserModel {
       createdAt:  json['created_at'] as String? ?? '',
     );
   }
+  
+  
 
   // ── Vers JSON (stockage local) ─────────────────────────────
   Map<String, dynamic> toJson() => {
@@ -75,19 +77,40 @@ class UserModel {
     );
   }
 }
-
-// ── Modèle réponse auth (login + register) ─────────────────────
 class AuthResponse {
+  final String token;
+  final UserModel utilisateur;
+
+  const AuthResponse({
+    required this.token,
+    required this.utilisateur,
+  });
+
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    return AuthResponse(
+      token: json['token']?.toString() ?? '',
+      utilisateur: UserModel.fromJson(
+        Map<String, dynamic>.from(
+          json['utilisateur'] ?? {},
+        ),
+      ),
+    );
+  }
+}
+// ── Modèle réponse auth (login + register) ─────────────────────
+/*class AuthResponse {
   final String    token;
   final UserModel utilisateur;
 
   const AuthResponse({required this.token, required this.utilisateur});
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    return AuthResponse(
-      token:        json['token'] as String,
-      utilisateur:  UserModel.fromJson(
-          json['utilisateur'] as Map<String, dynamic>),
-    );
-  }
+  return AuthResponse(
+    token: json['token']?.toString() ?? '',
+    utilisateur: UserModel.fromJson(
+      Map<String, dynamic>.from(json['utilisateur'] ?? {}),
+    ),
+  );
 }
+}
+*/

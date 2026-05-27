@@ -15,7 +15,7 @@ class AuthService extends ChangeNotifier {
   // ── Clés SharedPreferences ─────────────────────────────────
   static const String _keyToken = 'agrisense_jwt_token';
   static const String _keyUser  = 'agrisense_user';
-  static const bool devMode=true;
+  static const bool devMode=false;
 
   // ── Getters publics ────────────────────────────────────────
   UserModel? get user        => _user;
