@@ -24,7 +24,7 @@ class CapteurService extends ChangeNotifier {
 
   void setToken(String token) {
     _token = token;
-    notifyListeners();
+    // notifyListeners();
   }
 
   // ── Headers avec auth ─────────────────────────────────────────────────────

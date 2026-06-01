@@ -40,12 +40,12 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     ),
                     child: Stack(
                       children: [
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 46,
                           backgroundColor: AppColors.green200,
                           child: Text(
-                            'KN',
-                            style: TextStyle(
+                            user?.initiales ?? '?',
+                            style: const TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w500,
                                 color: AppColors.green700),

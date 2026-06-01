@@ -852,4 +852,3 @@ NoeudCapteur (indépendant, global)
 - **Les mises à jour partielles** sont supportées (utiliser COALESCE côté serveur)
 - **CORS** est activé pour accepter les requêtes depuis n'importe quelle origine
 - **Isolation des données** : Chaque utilisateur ne peut accéder qu'à ses propres données (champs, cultures, seuils)
-

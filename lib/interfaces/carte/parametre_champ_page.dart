@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_colors.dart';
 import '../../models/champ.dart';
 import '../../services/champ_service.dart';
+import '../../services/seuil_service.dart';
 
 class ParametreChampScreen extends StatefulWidget {
   // champ est maintenant optionnel : null = mode démo (données statiques)
@@ -25,6 +27,8 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
   final List<String> _stades   = ['Semis', 'Croissance', 'Floraison', 'Récolte'];
 
   double _seuilHumidite = 60;
+  double _minHumidite = 20;   // Valeur par défaut
+  double _maxHumidite = 90;   // Valeur par défaut
   bool _notifPush    = true;
   bool _notifSms     = false;
   bool _alerteAuto   = true;
@@ -42,6 +46,28 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
     _nomController     = TextEditingController(text: widget.champ?.nom       ?? 'Champ Nord');
     _surfaceController = TextEditingController(text: widget.champ?.superficie?.toString() ?? '4.2');
     _zonesController   = TextEditingController(text: '4');
+    
+    // Charge les seuils d'humidité depuis l'API
+    _loadSeuilHumidite();
+  }
+
+  Future<void> _loadSeuilHumidite() async {
+    try {
+      final seuilService = context.read<SeuilService>();
+      final seuil = await seuilService.getSeuil();
+      
+      if (seuil != null && mounted) {
+        setState(() {
+          _minHumidite = seuil.valeurMin;
+          _maxHumidite = seuil.valeurMax;
+          _seuilHumidite = seuil.seuilCritique;
+          _irrigationAuto = seuil.irrigationAuto;
+        });
+      }
+    } catch (e) {
+      // Garder les valeurs par défaut si erreur
+      if (kDebugMode) print('Erreur chargement seuils : $e');
+    }
   }
 
   @override
@@ -57,9 +83,9 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
 
     try {
       if (_avecBackend) {
-        // Vrai appel API
-        final service = context.read<ChampService>();
-        await service.updateChamp(
+        // Vrai appel API - mise à jour du champ
+        final champService = context.read<ChampService>();
+        await champService.updateChamp(
           id: widget.champ!.id,
           data: {
             'nom':         _nomController.text.trim(),
@@ -70,6 +96,14 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
             'longitude':   widget.champ!.longitude ?? 0,
           },
         );
+        
+        // Sauvegarde aussi les seuils d'humidité
+        final seuilService = context.read<SeuilService>();
+        await seuilService.saveSeuil(
+          valeurMin: _minHumidite,
+          valeurMax: _maxHumidite,
+          irrigationAuto: _irrigationAuto,
+        );
       } else {
         // Mode démo : on simule une sauvegarde
         await Future.delayed(const Duration(milliseconds: 700));
@@ -79,7 +113,7 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_avecBackend
-                ? 'Champ mis à jour avec succès !'
+                ? 'Champ et seuils mis à jour avec succès !'
                 : 'Paramètres enregistrés (mode démo)'),
             backgroundColor: AppColors.green700,
             behavior: SnackBarBehavior.floating,
@@ -334,19 +368,21 @@ class _ParametreChampScreenState extends State<ParametreChampScreen> {
                           overlayColor: _seuilColor().withOpacity(0.15),
                         ),
                         child: Slider(
-                          value: _seuilHumidite, min: 20, max: 90, divisions: 70,
+                          value: _seuilHumidite, min: _minHumidite, max: _maxHumidite, divisions: (_maxHumidite - _minHumidite).toInt(),
                           onChanged: (v) => setState(() => _seuilHumidite = v),
                         ),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('20%', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                          Text('${_minHumidite.round()}%', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
                           Text(
-                            _seuilHumidite < 40 ? 'Zone critique' : _seuilHumidite < 65 ? 'Zone modérée' : 'Zone sécurisée',
+                            _seuilHumidite < (_minHumidite + (_maxHumidite - _minHumidite) * 0.3) ? 'Zone critique' 
+                            : _seuilHumidite < (_minHumidite + (_maxHumidite - _minHumidite) * 0.65) ? 'Zone modérée' 
+                            : 'Zone sécurisée',
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: _seuilColor()),
                           ),
-                          const Text('90%', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                          Text('${_maxHumidite.round()}%', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
                         ],
                       ),
                     ],

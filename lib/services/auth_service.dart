@@ -6,25 +6,26 @@ import '../config/api_config.dart';
 import '../models/user.dart';
 
 class AuthService extends ChangeNotifier {
-  // ── État interne ───────────────────────────────────────────
   UserModel? _user;
   String?    _token;
-  bool       _isLoading = false;
+  bool       _isLoading = true; // true par défaut → splash affiché jusqu'à fin init()
   String?    _errorMessage;
 
-  // ── Clés SharedPreferences ─────────────────────────────────
   static const String _keyToken = 'agrisense_jwt_token';
   static const String _keyUser  = 'agrisense_user';
-  static const bool devMode=false;
 
-  // ── Getters publics ────────────────────────────────────────
-  UserModel? get user        => _user;
-  String?    get token       => _token;
-  bool       get isLoading   => _isLoading;
+  UserModel? get user         => _user;
+  String?    get token        => _token;
+  bool       get isLoading    => _isLoading;
   String?    get errorMessage => _errorMessage;
-  bool       get isLoggedIn  => _token != null && _user != null;
 
-  // ── Headers communs ────────────────────────────────────────
+  // ✅ CRITIQUE : token non null ET non vide ET user valide
+  bool get isLoggedIn =>
+      _token != null &&
+      _token!.isNotEmpty &&
+      _user != null &&
+      _user!.estValide;
+
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept':       'application/json',
@@ -35,81 +36,49 @@ class AuthService extends ChangeNotifier {
     'Authorization': 'Bearer $_token',
   };
 
-  // ══════════════════════════════════════════════════════════
-  // INITIALISATION — à appeler au démarrage de l'app
-  // ══════════════════════════════════════════════════════════
-  /*Future<void> init() async {
-    _isLoading = true;
-    notifyListeners();
+  // ── INITIALISATION ──────────────────────────────────────────
+  Future<void> init() async {
+    // isLoading est déjà true depuis la construction
 
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString(_keyToken);
+    final prefs    = await SharedPreferences.getInstance();
+    final token    = prefs.getString(_keyToken);
     final userJson = prefs.getString(_keyUser);
-    if (userJson != null && _token != null) {
+
+    if (token != null && token.isNotEmpty && userJson != null) {
       try {
-        _user = UserModel.fromJson(
-            jsonDecode(userJson) as Map<String, dynamic>);
-        notifyListeners();
-        // Vérifie que le token est encore valide
-        await _verifierToken();
+        final user = UserModel.fromJson(
+          jsonDecode(userJson) as Map<String, dynamic>,
+        );
+
+        // User local invalide → on nettoie
+        if (!user.estValide) {
+          await _clearSession();
+          _isLoading = false;
+          notifyListeners();
+          return;
+        }
+
+        _token = token;
+        _user  = user;
+
+        // Vérifie le token côté serveur
+        final tokenOk = await _verifierToken();
+        if (!tokenOk) {
+          await _clearSession();
+        }
       } catch (_) {
         await _clearSession();
       }
-    }
-    
-
-    _isLoading = false;
-    notifyListeners();
-  }*/
-  Future<void> init() async {
-  _isLoading = true;
-  notifyListeners();
-
-  // ── MODE DEV : bypass login ─────────────────────────────
-  if (devMode) {
-    _user = const UserModel(
-      id: '1',
-      email: 'kouam.njankou@agrisense.cm',
-      nom: 'Kouam',
-      prenom: 'Njankou',
-      profession: 'Agriculteur',
-      statut: 'actif',
-      createdAt: '2026-01-01',
-    );
-
-    _token = 'dev-token';
-
-    _isLoading = false;
-    notifyListeners();
-    return;
-  }
-
-  // ── MODE NORMAL ─────────────────────────────────────────
-  final prefs = await SharedPreferences.getInstance();
-
-  _token = prefs.getString(_keyToken);
-
-  final userJson = prefs.getString(_keyUser);
-
-  if (userJson != null && _token != null) {
-    try {
-      _user = UserModel.fromJson(
-        jsonDecode(userJson) as Map<String, dynamic>,
-      );
-
-      await _verifierToken();
-    } catch (_) {
+    } else {
+      // Pas de session sauvegardée → on nettoie au cas où
       await _clearSession();
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  _isLoading = false;
-  notifyListeners();
-}
-
-  // ══════════════════════════════════════════════════════════
-  // INSCRIPTION — POST /auth/register
-  // ══════════════════════════════════════════════════════════
+  // ── INSCRIPTION ─────────────────────────────────────────────
   Future<bool> register({
     required String email,
     required String password,
@@ -138,8 +107,8 @@ class AuthService extends ChangeNotifier {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200) {
-        final auth = AuthResponse.fromJson(body);
-        await _saveSession(auth.token, auth.utilisateur);
+        // Inscription réussie → PAS de sauvegarde de session
+        // L'utilisateur doit se connecter manuellement
         _setLoading(false);
         return true;
       } else {
@@ -155,9 +124,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // CONNEXION — POST /auth/login
-  // ══════════════════════════════════════════════════════════
+  // ── CONNEXION ───────────────────────────────────────────────
   Future<bool> login({
     required String email,
     required String password,
@@ -179,12 +146,28 @@ class AuthService extends ChangeNotifier {
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
 
+      // ✅ On vérifie le statusCode EN PREMIER avant de parser
       if (response.statusCode == 200) {
-        final auth = AuthResponse.fromJson(body);
-        await _saveSession(auth.token, auth.utilisateur);
-        _setLoading(false);
-        return true;
+        try {
+          final auth = AuthResponse.fromJson(body);
+
+          // ✅ Double vérification : user doit être valide
+          if (!auth.utilisateur.estValide || auth.token.isEmpty) {
+            _errorMessage = 'Réponse du serveur invalide';
+            _setLoading(false);
+            return false;
+          }
+
+          await _saveSession(auth.token, auth.utilisateur);
+          _setLoading(false);
+          return true;
+        } on FormatException catch (e) {
+          _errorMessage = e.message;
+          _setLoading(false);
+          return false;
+        }
       } else {
+        // 400, 401, 404... → erreur métier
         _errorMessage = body['error'] as String? ??
             'Email ou mot de passe incorrect';
         _setLoading(false);
@@ -197,19 +180,16 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // DÉCONNEXION
-  // ══════════════════════════════════════════════════════════
+  // ── DÉCONNEXION ─────────────────────────────────────────────
   Future<void> logout() async {
     await _clearSession();
+    _isLoading = false;
     notifyListeners();
   }
 
-  // ══════════════════════════════════════════════════════════
-  // RÉCUPÉRER MON PROFIL — GET /utilisateurs/me
-  // ══════════════════════════════════════════════════════════
+  // ── RÉCUPÉRER MON PROFIL ────────────────────────────────────
   Future<bool> fetchMe() async {
-    if (_token == null) return false;
+    if (_token == null || _token!.isEmpty) return false;
 
     try {
       final response = await http
@@ -218,30 +198,33 @@ class AuthService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
-        _user = UserModel.fromJson(body);
-        await _persistUser(_user!);
-        notifyListeners();
-        return true;
+        final user = UserModel.fromJson(body);
+        if (user.estValide) {
+          _user = user;
+          await _persistUser(_user!);
+          notifyListeners();
+          return true;
+        }
+        return false;
       } else if (response.statusCode == 401) {
         await _clearSession();
+        notifyListeners();
         return false;
       }
     } on Exception {
-      // Pas de connexion réseau — on garde les données locales
+      // Pas de réseau → on garde les données locales
     }
     return false;
   }
 
-  // ══════════════════════════════════════════════════════════
-  // METTRE À JOUR MON PROFIL — PUT /utilisateurs/me
-  // ══════════════════════════════════════════════════════════
+  // ── MISE À JOUR PROFIL ──────────────────────────────────────
   Future<bool> updateMe({
     required String nom,
     required String prenom,
     required String email,
     required String profession,
   }) async {
-    if (_token == null) return false;
+    if (_token == null || _token!.isEmpty) return false;
     _setLoading(true);
     _errorMessage = null;
 
@@ -262,8 +245,11 @@ class AuthService extends ChangeNotifier {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200) {
-        _user = UserModel.fromJson(body);
-        await _persistUser(_user!);
+        final user = UserModel.fromJson(body);
+        if (user.estValide) {
+          _user = user;
+          await _persistUser(_user!);
+        }
         _setLoading(false);
         notifyListeners();
         return true;
@@ -280,10 +266,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // MÉTHODES PRIVÉES
-  // ══════════════════════════════════════════════════════════
-
+  // ── MÉTHODES PRIVÉES ────────────────────────────────────────
   Future<void> _saveSession(String token, UserModel user) async {
     _token = token;
     _user  = user;
@@ -306,16 +289,29 @@ class AuthService extends ChangeNotifier {
     await prefs.remove(_keyUser);
   }
 
-  Future<void> _verifierToken() async {
+  // Retourne true = token valide, false = token expiré/invalide
+  Future<bool> _verifierToken() async {
     try {
       final response = await http
           .get(Uri.parse(ApiConfig.me), headers: _authHeaders)
           .timeout(const Duration(seconds: 8));
-      if (response.statusCode == 401) {
-        await _clearSession();
+
+      if (response.statusCode == 200) {
+        // Met à jour le user depuis le serveur
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final user = UserModel.fromJson(body);
+        if (user.estValide) {
+          _user = user;
+          await _persistUser(user);
+        }
+        return true;
+      } else if (response.statusCode == 401) {
+        return false;
       }
+      return true;
     } on Exception {
-      // Pas de réseau — on garde la session locale
+      // Pas de réseau → on garde la session locale
+      return true;
     }
   }
 
@@ -326,8 +322,8 @@ class AuthService extends ChangeNotifier {
 
   String _handleException(Exception e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('timeout'))   return 'Délai dépassé. Vérifiez votre connexion.';
-    if (msg.contains('socket'))    return 'Impossible de joindre le serveur.';
+    if (msg.contains('timeout'))    return 'Délai dépassé. Vérifiez votre connexion.';
+    if (msg.contains('socket'))     return 'Impossible de joindre le serveur.';
     if (msg.contains('connection')) return 'Pas de connexion réseau.';
     return 'Une erreur s\'est produite. Réessayez.';
   }

@@ -20,7 +20,7 @@ class UtilisateurService extends ChangeNotifier {
 
   void setToken(String token) {
     _token = token;
-    notifyListeners();
+    //notifyListeners();
   }
 
   Map<String, String> get _headers => {

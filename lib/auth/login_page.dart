@@ -1,4 +1,3 @@
-// lib/auth/login_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -19,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool  _showPwd      = false;
+  bool  _isSaving     = false; // ← état local pour le bouton
   late  AnimationController _anim;
   late  Animation<double>   _fadeAnim;
 
@@ -43,6 +43,8 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
+    setState(() => _isSaving = true);
+
     final auth    = context.read<AuthService>();
     final success = await auth.login(
       email:    _emailCtrl.text.trim(),
@@ -50,9 +52,9 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     if (!mounted) return;
+    setState(() => _isSaving = false);
 
     if (success) {
-      // Message de bienvenue
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(children: [
@@ -70,9 +72,9 @@ class _LoginScreenState extends State<LoginScreen>
           duration: const Duration(seconds: 2),
         ),
       );
-      // L'AuthWrapper redirige automatiquement vers MainShell
-    } else if (auth.errorMessage != null) {
-      _showError(auth.errorMessage!);
+      // AuthWrapper redirige automatiquement vers MainShell
+    } else {
+      _showError(auth.errorMessage ?? 'Email ou mot de passe incorrect');
     }
   }
 
@@ -95,8 +97,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthService>();
-
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
@@ -110,7 +110,6 @@ class _LoginScreenState extends State<LoginScreen>
 
                 const SizedBox(height: 48),
 
-                // ── Logo + titre ──────────────────────────────────
                 Center(
                   child: Column(children: [
                     Container(
@@ -205,7 +204,8 @@ class _LoginScreenState extends State<LoginScreen>
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: auth.isLoading ? null : _submit,
+                        // ✅ État local _isSaving, pas auth.isLoading
+                        onPressed: _isSaving ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.green600,
                           foregroundColor: Colors.white,
@@ -216,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen>
                           textStyle: const TextStyle(
                               fontSize: 15, fontWeight: FontWeight.w600),
                         ),
-                        child: auth.isLoading
+                        child: _isSaving
                             ? const SizedBox(
                                 width: 22, height: 22,
                                 child: CircularProgressIndicator(

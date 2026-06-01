@@ -1,8 +1,3 @@
-// ============================================================
-// lib/models/user_model.dart
-// Modèle utilisateur — calqué exactement sur la réponse API Rust
-// ============================================================
-
 class UserModel {
   final String id;
   final String email;
@@ -22,7 +17,6 @@ class UserModel {
     required this.createdAt,
   });
 
-  // ── Depuis JSON (réponse API) ──────────────────────────────
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id:         json['id']         as String? ?? '',
@@ -34,10 +28,7 @@ class UserModel {
       createdAt:  json['created_at'] as String? ?? '',
     );
   }
-  
-  
 
-  // ── Vers JSON (stockage local) ─────────────────────────────
   Map<String, dynamic> toJson() => {
     'id':         id,
     'email':      email,
@@ -48,17 +39,14 @@ class UserModel {
     'created_at': createdAt,
   };
 
-  // ── Nom complet ────────────────────────────────────────────
   String get nomComplet => '$prenom $nom';
 
-  // ── Initiales pour l'avatar ────────────────────────────────
   String get initiales {
     final p = prenom.isNotEmpty ? prenom[0].toUpperCase() : '';
     final n = nom.isNotEmpty    ? nom[0].toUpperCase()    : '';
     return '$p$n';
   }
 
-  // ── Copie avec modification ────────────────────────────────
   UserModel copyWith({
     String? email,
     String? nom,
@@ -76,7 +64,11 @@ class UserModel {
       createdAt:  createdAt,
     );
   }
+
+  // ✅ Un utilisateur valide doit avoir un id et un email non vides
+  bool get estValide => id.isNotEmpty && email.isNotEmpty;
 }
+
 class AuthResponse {
   final String token;
   final UserModel utilisateur;
@@ -87,30 +79,18 @@ class AuthResponse {
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    // ✅ Si 'token' ou 'utilisateur' est absent → lève une exception
+    // que login() interceptera pour retourner false
+    final token = json['token'] as String?;
+    final userJson = json['utilisateur'];
+
+    if (token == null || token.isEmpty || userJson == null) {
+      throw const FormatException('Réponse API invalide : token ou utilisateur manquant');
+    }
+
     return AuthResponse(
-      token: json['token']?.toString() ?? '',
-      utilisateur: UserModel.fromJson(
-        Map<String, dynamic>.from(
-          json['utilisateur'] ?? {},
-        ),
-      ),
+      token:       token,
+      utilisateur: UserModel.fromJson(Map<String, dynamic>.from(userJson)),
     );
   }
 }
-// ── Modèle réponse auth (login + register) ─────────────────────
-/*class AuthResponse {
-  final String    token;
-  final UserModel utilisateur;
-
-  const AuthResponse({required this.token, required this.utilisateur});
-
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
-  return AuthResponse(
-    token: json['token']?.toString() ?? '',
-    utilisateur: UserModel.fromJson(
-      Map<String, dynamic>.from(json['utilisateur'] ?? {}),
-    ),
-  );
-}
-}
-*/

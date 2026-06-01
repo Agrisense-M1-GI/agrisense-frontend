@@ -26,6 +26,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   late final TextEditingController _telController;
   late final TextEditingController _villeController;
   late final TextEditingController _regionController;
+  
 
   String _selectedMetier = 'Agriculteur';
   final List<String> _metiers = [
@@ -109,9 +110,9 @@ Future<void> _save() async {
 @override
 void initState() {
   super.initState();
-
-  final user = context.read<AuthService>().user;
-
+  
+  final user = Provider.of<AuthService>(context, listen: false).user;
+  
   _nomController =
       TextEditingController(text: user?.nom ?? '');
 
@@ -129,8 +130,8 @@ void initState() {
   _regionController =
       TextEditingController();
 
-  _selectedMetier =
-      user?.profession ?? 'Agriculteur';
+  final profession = user?.profession ?? '';
+  _selectedMetier = _metiers.contains(profession) ? profession : 'Agriculteur';
 }
   @override
   Widget build(BuildContext context) {
@@ -168,7 +169,7 @@ void initState() {
               Center(
                 child: Stack(
                   children: [
-                    const CircleAvatar(
+                    /*CircleAvatar(
                       radius: 46,
                       backgroundColor: AppColors.green200,
                       child: Text(
@@ -178,7 +179,23 @@ void initState() {
                             fontWeight: FontWeight.w500,
                             color: AppColors.green700),
                       ),
-                    ),
+                    ),*/
+                    /*Builder(
+  builder: (context) {
+    final user = context.read<AuthService>().user;
+    return CircleAvatar(
+      radius: 46,
+      backgroundColor: AppColors.green200,
+      child: Text(
+        user?.initiales ?? '?',
+        style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w500,
+            color: AppColors.green700),
+      ),
+    );
+  },
+),*/
                     Positioned(
                       bottom: 0,
                       right: 0,
