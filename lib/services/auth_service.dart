@@ -36,8 +36,42 @@ class AuthService extends ChangeNotifier {
     'Authorization': 'Bearer $_token',
   };
 
-  // ── INITIALISATION ──────────────────────────────────────────
-  Future<void> init() async {
+  
+// ── INITIALISATION ──────────────────────────────────────────
+Future<void> init() async {
+  _isLoading = true;
+  notifyListeners();
+
+  final prefs = await SharedPreferences.getInstance();
+  _token = prefs.getString(_keyToken);
+  final userJson = prefs.getString(_keyUser);
+
+  if (_token != null && userJson != null) {
+    try {
+      _user = UserModel.fromJson(
+        jsonDecode(userJson) as Map<String, dynamic>,
+      );
+      final response = await http
+          .get(Uri.parse(ApiConfig.me), headers: _authHeaders)
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        _user = UserModel.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>,
+        );
+        await _persistUser(_user!);
+      } else {
+        await _clearSession();
+      }
+    } catch (_) {
+      // Pas de réseau → garder cache local
+    }
+  }
+
+  _isLoading = false;
+  notifyListeners();
+}
+  /*Future<void> init() async {
     // isLoading est déjà true depuis la construction
 
     final prefs    = await SharedPreferences.getInstance();
@@ -76,7 +110,7 @@ class AuthService extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
-  }
+  }*/
 
   // ── INSCRIPTION ─────────────────────────────────────────────
   Future<bool> register({

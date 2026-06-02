@@ -1,4 +1,5 @@
 // lib/auth/register_page.dart
+import 'package:agrisense/interfaces/carte/configurer_champ_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -64,6 +65,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (success) {
       // Déconnecter pour forcer une vraie connexion
       await auth.logout();
+
+        
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -1,3 +1,4 @@
+import 'package:agrisense/interfaces/carte/configurer_champ_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -20,38 +21,38 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final authService = AuthService();
-  await authService.init();
+  await authService.init(); // charge token + vérifie backend
 
-  // Token disponible dès le démarrage
-  final token = authService.token;
+  final token = authService.token; // token valide ou null
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: authService),
-        ChangeNotifierProvider(
-          create: (_) => CapteurService(
-            baseUrl: ApiConfig.baseUrl,
-            token: token,
-          ),
+        ChangeNotifierProxyProvider<AuthService, CapteurService>(
+          create: (_) => CapteurService(baseUrl: ApiConfig.baseUrl, token: token),
+          update: (_, auth, capteur) {
+            if (auth.token != null) capteur!.setToken(auth.token!);
+            return capteur!;
+          },
         ),
-        ChangeNotifierProvider(
-          create: (_) => SeuilService(
-            baseUrl: ApiConfig.baseUrl,
-            token: token,
-          ),
+        ChangeNotifierProxyProvider<AuthService, SeuilService>(
+          create: (_) => SeuilService(baseUrl: ApiConfig.baseUrl, token: token),
+          update: (_, auth, seuil) {
+            if (auth.token != null) seuil!.setToken(auth.token!);
+            return seuil!;
+          },
         ),
-        ChangeNotifierProvider(
-          create: (_) => UtilisateurService(
-            baseUrl: ApiConfig.baseUrl,
-            token: token,
-          ),
+        ChangeNotifierProxyProvider<AuthService, UtilisateurService>(
+          create: (_) => UtilisateurService(baseUrl: ApiConfig.baseUrl, token: token),
+          update: (_, auth, user) {
+            if (auth.token != null) user!.setToken(auth.token!);
+            return user!;
+          },
         ),
-        Provider(
-          create: (context) => ChampService(
-            baseUrl: ApiConfig.baseUrl,
-            authService: authService,
-          ),
+        ProxyProvider<AuthService, ChampService>(
+          create: (_) => ChampService(baseUrl: ApiConfig.baseUrl, authService: authService),
+          update: (_, auth, champ) => champ!,
         ),
       ],
       child: const AgriSenseApp(),
@@ -94,8 +95,7 @@ class AgriSenseApp extends StatelessWidget {
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
-          selectedLabelStyle:
-              TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+          selectedLabelStyle: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
           unselectedLabelStyle: TextStyle(fontSize: 10),
         ),
       ),
@@ -114,7 +114,10 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, auth, _) {
         if (auth.isLoading) return const _SplashScreen();
         if (!auth.isLoggedIn) return const LoginScreen();
-        return const MainShell();
+        return KeyedSubtree(
+          key: ValueKey(auth.user!.id),
+          child: const MainShell(),
+        );
       },
     );
   }
@@ -138,20 +141,16 @@ class _SplashScreen extends StatelessWidget {
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: const Icon(Icons.grass_rounded,
-                  color: Colors.white, size: 44),
+              child: const Icon(Icons.grass_rounded, color: Colors.white, size: 44),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'AgriSense',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600),
-            ),
+            const Text('AgriSense',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 32),
-            const CircularProgressIndicator(
-                color: Colors.white, strokeWidth: 2),
+            const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
           ],
         ),
       ),
@@ -181,15 +180,24 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    // ✅ Après le build → pas d'erreur setState during build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = context.read<AuthService>();
-      if (auth.token != null) {
-        context.read<CapteurService>().setToken(auth.token!);
-        context.read<SeuilService>().setToken(auth.token!);
-        context.read<UtilisateurService>().setToken(auth.token!);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _verifierPremiereLancement();
     });
+  }
+
+  Future<void> _verifierPremiereLancement() async {
+    try {
+      final champService = context.read<ChampService>();
+      final champs = await champService.getChamps();
+      if (champs.isEmpty && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ConfigurerChampScreen()),
+        );
+      }
+    } catch (_) {
+      // Pas de réseau → on laisse passer
+    }
   }
 
   @override
@@ -198,8 +206,7 @@ class _MainShellState extends State<MainShell> {
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          border: Border(
-              top: BorderSide(color: AppColors.border, width: 0.5)),
+          border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,

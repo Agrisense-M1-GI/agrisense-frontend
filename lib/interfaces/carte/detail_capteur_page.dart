@@ -433,7 +433,7 @@ class _DetailCapteurScreenState extends State<DetailCapteurScreen> {
             const SizedBox(height: 14),
 
             // ── Bouton action ─────────────────────────────────────────────
-            SizedBox(
+            /*SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {},
@@ -480,7 +480,7 @@ class _DetailCapteurScreenState extends State<DetailCapteurScreen> {
                   ),
                 ),
               ),
-            ),
+            ),*/
 
             const SizedBox(height: 8),
           ],
