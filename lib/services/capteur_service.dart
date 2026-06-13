@@ -155,26 +155,4 @@ Future<void> deleteCapteur(String id) async {
     throw Exception('Erreur suppression capteur');
   }
 }
- 
-Future<double> getDerniereHumidite({
-  required String capteurId,
-  required String token,
-}) async {
-  final response = await http.get(
-    Uri.parse('$baseUrl/humidite/$capteurId/derniere'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-  ).timeout(const Duration(seconds: 5));
-
-  if (response.statusCode == 200) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return (body['valeur'] as num).toDouble();
-  }
-  // 404 = pas encore de mesure → retourne 0
-  return 0;
-}
-
-
 }

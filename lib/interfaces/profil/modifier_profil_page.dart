@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../main.dart';
 import '../../app_colors.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
@@ -14,19 +13,12 @@ class ModifierProfilScreen extends StatefulWidget {
 class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  /*final _nomController = TextEditingController(text: 'Kouam');
-  final _prenomController = TextEditingController(text: 'Njankou');
-  final _emailController = TextEditingController(text: 'kouam.njankou@agrisense.cm');
-  final _telController = TextEditingController(text: '+237 677 123 456');
-  final _villeController = TextEditingController(text: 'Dschang');
-  final _regionController = TextEditingController(text: 'Ouest, Cameroun');*/
   late final TextEditingController _nomController;
   late final TextEditingController _prenomController;
   late final TextEditingController _emailController;
   late final TextEditingController _telController;
   late final TextEditingController _villeController;
   late final TextEditingController _regionController;
-  
 
   String _selectedMetier = 'Agriculteur';
   final List<String> _metiers = [
@@ -38,6 +30,27 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   ];
 
   bool _isSaving = false;
+  String _initiales = '?';
+
+  @override
+  void initState() {
+    super.initState();
+
+    final user = Provider.of<AuthService>(context, listen: false).user;
+
+    _initiales = user?.initiales ?? '?';
+
+    _nomController = TextEditingController(text: user?.nom ?? '');
+    _prenomController = TextEditingController(text: user?.prenom ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _telController = TextEditingController();
+    _villeController = TextEditingController();
+    _regionController = TextEditingController();
+
+    final profession = user?.profession ?? '';
+    _selectedMetier =
+        _metiers.contains(profession) ? profession : 'Agriculteur';
+  }
 
   @override
   void dispose() {
@@ -50,89 +63,42 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
     super.dispose();
   }
 
-  /*Future<void> _save() async {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isSaving = true);
-    await Future.delayed(const Duration(seconds: 1));
+
+    final auth = context.read<AuthService>();
+
+    final success = await auth.updateMe(
+      nom: _nomController.text,
+      prenom: _prenomController.text,
+      email: _emailController.text,
+      profession: _selectedMetier,
+    );
+
     setState(() => _isSaving = false);
-    if (mounted) {
+
+    if (!mounted) return;
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Profil mis à jour avec succès !'),
           backgroundColor: AppColors.green700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
         ),
       );
       Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.errorMessage ?? 'Erreur de mise à jour'),
+          backgroundColor: AppColors.red600,
+        ),
+      );
     }
   }
-*/
-Future<void> _save() async {
-  if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isSaving = true);
-
-  final auth = context.read<AuthService>();
-
-  final success = await auth.updateMe(
-    nom: _nomController.text,
-    prenom: _prenomController.text,
-    email: _emailController.text,
-    profession: _selectedMetier,
-  );
-
-  setState(() => _isSaving = false);
-
-  if (!mounted) return;
-
-  if (success) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Profil mis à jour avec succès !'),
-        backgroundColor: AppColors.green700,
-      ),
-    );
-
-    Navigator.pop(context);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          auth.errorMessage ?? 'Erreur de mise à jour',
-        ),
-        backgroundColor: AppColors.red600,
-      ),
-    );
-  }
-}
-@override
-void initState() {
-  super.initState();
-  
-  final user = Provider.of<AuthService>(context, listen: false).user;
-  
-  _nomController =
-      TextEditingController(text: user?.nom ?? '');
-
-  _prenomController =
-      TextEditingController(text: user?.prenom ?? '');
-
-  _emailController =
-      TextEditingController(text: user?.email ?? '');
-  _telController =
-      TextEditingController();
-
-  _villeController =
-      TextEditingController();
-
-  _regionController =
-      TextEditingController();
-
-  final profession = user?.profession ?? '';
-  _selectedMetier = _metiers.contains(profession) ? profession : 'Agriculteur';
-}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,9 +113,8 @@ void initState() {
               child: Text(
                 'Sauvegarder',
                 style: TextStyle(
-                  color: _isSaving
-                      ? AppColors.textMuted
-                      : AppColors.green700,
+                  color:
+                      _isSaving ? AppColors.textMuted : AppColors.green700,
                   fontWeight: FontWeight.w500,
                   fontSize: 14,
                 ),
@@ -165,37 +130,22 @@ void initState() {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Avatar éditable ───────────────────────────────────────
+              // ── Avatar éditable ─────────────────────────────────────
               Center(
                 child: Stack(
                   children: [
-                    /*CircleAvatar(
+                    CircleAvatar(
                       radius: 46,
                       backgroundColor: AppColors.green200,
                       child: Text(
-                        'KN',
-                        style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.green700),
+                        _initiales,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.green700,
+                        ),
                       ),
-                    ),*/
-                    /*Builder(
-  builder: (context) {
-    final user = context.read<AuthService>().user;
-    return CircleAvatar(
-      radius: 46,
-      backgroundColor: AppColors.green200,
-      child: Text(
-        user?.initiales ?? '?',
-        style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w500,
-            color: AppColors.green700),
-      ),
-    );
-  },
-),*/
+                    ),
                     Positioned(
                       bottom: 0,
                       right: 0,
@@ -205,8 +155,8 @@ void initState() {
                         decoration: BoxDecoration(
                           color: AppColors.green600,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: AppColors.white, width: 2),
+                          border:
+                              Border.all(color: AppColors.white, width: 2),
                         ),
                         child: const Icon(Icons.camera_alt,
                             color: AppColors.white, size: 14),
@@ -226,7 +176,7 @@ void initState() {
 
               const SizedBox(height: 24),
 
-              // ── Informations personnelles ─────────────────────────────
+              // ── Informations personnelles ───────────────────────────
               _SectionHeader(title: 'Informations personnelles'),
               _FormCard(
                 children: [
@@ -269,7 +219,7 @@ void initState() {
 
               const SizedBox(height: 16),
 
-              // ── Localisation ──────────────────────────────────────────
+              // ── Localisation ────────────────────────────────────────
               _SectionHeader(title: 'Localisation'),
               _FormCard(
                 children: [
@@ -289,7 +239,7 @@ void initState() {
 
               const SizedBox(height: 16),
 
-              // ── Métier ────────────────────────────────────────────────
+              // ── Profession ──────────────────────────────────────────
               _SectionHeader(title: 'Profession'),
               _FormCard(
                 children: [
@@ -314,8 +264,7 @@ void initState() {
                                   setState(() => _selectedMetier = v!),
                               items: _metiers
                                   .map((m) => DropdownMenuItem(
-                                      value: m,
-                                      child: Text(m)))
+                                      value: m, child: Text(m)))
                                   .toList(),
                             ),
                           ),
@@ -328,7 +277,7 @@ void initState() {
 
               const SizedBox(height: 28),
 
-              // ── Bouton sauvegarder ────────────────────────────────────
+              // ── Bouton sauvegarder ──────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -348,8 +297,7 @@ void initState() {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.white),
+                              strokeWidth: 2, color: AppColors.white),
                         )
                       : const Text('Enregistrer les modifications'),
                 ),
@@ -444,8 +392,7 @@ class _AppField extends StatelessWidget {
               controller: controller,
               keyboardType: keyboardType,
               validator: validator,
-              style: const TextStyle(
-                  fontSize: 14, color: AppColors.text),
+              style: const TextStyle(fontSize: 14, color: AppColors.text),
               decoration: InputDecoration(
                 labelText: label,
                 labelStyle: const TextStyle(
@@ -471,7 +418,9 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Divider(
-        height: 0.5, thickness: 0.5,
-        indent: 44, color: Color(0xFFF0F5EB));
+        height: 0.5,
+        thickness: 0.5,
+        indent: 44,
+        color: Color(0xFFF0F5EB));
   }
 }

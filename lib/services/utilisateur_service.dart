@@ -47,30 +47,7 @@ class UtilisateurService extends ChangeNotifier {
   }
 
   // ── PUT /api/utilisateurs/me ──────────────────────────────────────────────
-  Future<UserModel> updateMe({
-    required String nom,
-    required String prenom,
-    String? profession,
-    String? email,
-  }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/utilisateurs/me'),
-      headers: _headers,
-      body: jsonEncode({
-        'nom':    nom,
-        'prenom': prenom,
-        if (profession != null) 'profession': profession,
-        if (email != null)      'email':      email,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      return UserModel.fromJson(
-          jsonDecode(response.body) as Map<String, dynamic>);
-    } else if (response.statusCode == 401) {
-      throw Exception('Non authentifié.');
-    } else {
-      throw Exception('Erreur mise à jour profil (${response.statusCode})');
-    }
-  }
+  // ⚠️  La mise à jour du profil est gérée par AuthService.updateMe()
+  // qui met aussi à jour le cache local et notifie les listeners.
+  // Ne pas ajouter de doublon ici.
 }

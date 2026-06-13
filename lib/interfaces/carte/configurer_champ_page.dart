@@ -53,13 +53,12 @@ class _ConfigurerChampScreenState extends State<ConfigurerChampScreen> {
   final _latCapteurCtrl      = TextEditingController();
   final _lngCapteurCtrl      = TextEditingController();
 
-  String _typeCapteur = 'humidite_temperature';
-  final List<Map<String, String>> _typesCapteur = [
-    {'value': 'humidite',             'label': 'Humidité'},
-    {'value': 'temperature',          'label': 'Température'},
-    {'value': 'humidite_temperature', 'label': 'Humidité + Température'},
-    {'value': 'humidite_temperature_lumiere', 'label': 'Humidité + Température + Lumière'},
-  ];
+ String _typeCapteur = 'mixte';
+final List<Map<String, String>> _typesCapteur = [
+  {'value': 'humidite', 'label': 'Humidité'},
+  {'value': 'imageur',  'label': 'Imageur'},
+  {'value': 'mixte',    'label': 'Mixte'},
+];
 
   // IDs créés
   String? _champId;

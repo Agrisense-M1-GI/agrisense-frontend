@@ -1,4 +1,5 @@
 import 'package:agrisense/interfaces/carte/configurer_champ_page.dart';
+import 'package:agrisense/services/image_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +8,7 @@ import 'services/capteur_service.dart';
 import 'services/seuil_service.dart';
 import 'services/utilisateur_service.dart';
 import 'services/champ_service.dart';
+import 'services/mesure_service.dart';
 import 'auth/login_page.dart';
 import 'app_colors.dart';
 import 'config/api_config.dart';
@@ -54,6 +56,19 @@ void main() async {
           create: (_) => ChampService(baseUrl: ApiConfig.baseUrl, authService: authService),
           update: (_, auth, champ) => champ!,
         ),
+
+        ChangeNotifierProxyProvider<AuthService, MesureService>(
+          create: (_) => MesureService(token: token),
+          update: (_, auth, mesure) {
+            if (auth.token != null) mesure!.setToken(auth.token!);
+            return mesure!;
+          },
+        ),
+
+        ProxyProvider<AuthService, ImageService>(
+          create: (_) => ImageService(authService: authService),
+          update: (_, auth, image) => image!,
+),
       ],
       child: const AgriSenseApp(),
     ),

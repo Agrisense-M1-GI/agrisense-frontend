@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../app_colors.dart';
 import '../../widget.dart';
-import 'package:http/http.dart' as http;
+import '../../services/capteur_service.dart';
 
 class DetailCapteurScreen extends StatefulWidget {
   final Map<String, dynamic> capteur;
@@ -19,30 +19,37 @@ class DetailCapteurScreen extends StatefulWidget {
 class _DetailCapteurScreenState extends State<DetailCapteurScreen> {
   Map<String, dynamic>? capteurData;
   bool isLoading = true;
-  final String baseUrl = 'http://192.168.X.X:8000/api';
 
   // Retourne les données chargées si disponibles, sinon les données passées en paramètre
   Map<String, dynamic> get _capteur => capteurData ?? widget.capteur;
 
   Future<void> fetchCapteur() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/capteurs/${widget.capteur['id']}'),
-      );
+    // Récupère l'UUID réel du capteur (stocké dans 'uuid' lors du mapping dans carte_page)
+    final uuid = widget.capteur['uuid'] as String? ?? widget.capteur['id'] as String?;
+    if (uuid == null || uuid.isEmpty) {
+      setState(() => isLoading = false);
+      return;
+    }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        setState(() {
-          capteurData = data;
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          capteurData = widget.capteur;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
+    try {
+      final capteurService = context.read<CapteurService>();
+      final capteurModel = await capteurService.getCapteur(uuid);
+
+      // Convertit le modèle en map pour rester compatible avec le reste de la page
+      setState(() {
+        capteurData = {
+          ...widget.capteur, // conserve id court (C1, C2...), zone, statut, humidite
+          'batterie':           capteurModel.batterie ?? widget.capteur['batterie'],
+          'etat':               capteurModel.etat,
+          'type_capteur':       capteurModel.typeCapteur ?? widget.capteur['type_capteur'],
+          'surface_couverte':   capteurModel.surfaceCouverte ?? widget.capteur['surface_couverte'],
+          'derniere_connexion': capteurModel.derniereConnexion
+              ?? widget.capteur['derniere_connexion'],
+        };
+        isLoading = false;
+      });
+    } catch (_) {
+      // Fallback sur les données passées depuis carte_page
       setState(() {
         capteurData = widget.capteur;
         isLoading = false;

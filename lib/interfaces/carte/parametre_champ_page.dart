@@ -1211,11 +1211,10 @@ class _ModifierCapteurScreenState
   bool _isSaving = false;
 
   final List<Map<String, String>> _typesCapteur = [
-    {'value': 'humidite',                    'label': 'Humidité'},
-    {'value': 'temperature',                 'label': 'Température'},
-    {'value': 'humidite_temperature',        'label': 'Humidité + Température'},
-    {'value': 'humidite_temperature_lumiere','label': 'Humidité + Température + Lumière'},
-  ];
+  {'value': 'humidite', 'label': 'Humidité'},
+  {'value': 'imageur',  'label': 'Imageur'},
+  {'value': 'mixte',    'label': 'Mixte'},
+];
   final List<String> _etats = ['actif', 'inactif'];
 
   @override
@@ -1446,11 +1445,10 @@ class _AjouterCapteurScreenState
   bool   _isSaving    = false;
 
   final List<Map<String, String>> _typesCapteur = [
-    {'value': 'humidite',                    'label': 'Humidité'},
-    {'value': 'temperature',                 'label': 'Température'},
-    {'value': 'humidite_temperature',        'label': 'Humidité + Température'},
-    {'value': 'humidite_temperature_lumiere','label': 'Humidité + Température + Lumière'},
-  ];
+  {'value': 'humidite', 'label': 'Humidité'},
+  {'value': 'imageur',  'label': 'Imageur'},
+  {'value': 'mixte',    'label': 'Mixte'},
+];
 
   @override
   void dispose() {

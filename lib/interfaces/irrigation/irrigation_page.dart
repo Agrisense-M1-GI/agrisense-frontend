@@ -876,7 +876,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
                   children: [
 
                     // ── Résumé capteurs ──────────────────────────────────
-                    _buildResumeCapteurs(),
+                    /*_buildResumeCapteurs(),
                     const SizedBox(height: 16),
 
                     // ── Seuils d'humidité ────────────────────────────────
@@ -885,6 +885,8 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
 
                     // ── Température critique ─────────────────────────────
                     _buildTempCritique(),
+                    const SizedBox(height: 16),*/
+                    _buildSeuils(),
                     const SizedBox(height: 16),
 
                     // ── Irrigation manuelle ──────────────────────────────
@@ -906,7 +908,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
   }
 
   // ── Résumé capteurs ────────────────────────────────────────────────────────
-  Widget _buildResumeCapteurs() {
+  /*Widget _buildResumeCapteurs() {
     return Row(children: [
       Expanded(child: _StatCard(
         icon: Icons.sensors,
@@ -1067,25 +1069,167 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
           Text('50°C', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
         ]),
         const SizedBox(height: 10),
-        Container(
+        /*Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: AppColors.amber100.withOpacity(0.6),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: AppColors.amber600.withOpacity(0.3)),
           ),
-          child: Row(children: [
+          /*child: Row(children: [
             const Icon(Icons.notifications_outlined, color: AppColors.amber800, size: 16),
             const SizedBox(width: 8),
             Expanded(child: Text(
               'Alerte si température ≥ ${_tempCritique.round()}°C',
               style: const TextStyle(fontSize: 11, color: AppColors.amber800),
             )),
-          ]),
-        ),
+          ]),*/
+        ),*/
       ]),
     );
-  }
+  }*/
+  Widget _buildSeuils() {
+  return AppCard(
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+      // ── En-tête ──────────────────────────────────────────
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Text('Seuils de surveillance',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                color: AppColors.text)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+              color: AppColors.green100, borderRadius: BorderRadius.circular(20)),
+          child: const Text('Configurable',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
+                  color: AppColors.green700)),
+        ),
+      ]),
+      const SizedBox(height: 4),
+      const Text('Définissez les limites d\'humidité et de température.',
+          style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+
+      const SizedBox(height: 20),
+
+      // ── HUMIDITÉ MIN ──────────────────────────────────────
+      const _SeuilLabel(icon: Icons.water_drop_outlined,
+          label: 'Humidité minimale', color: AppColors.red600),
+      const SizedBox(height: 6),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text('Déclenche l\'alerte en dessous de ce seuil',
+            style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+        _SeuilBadge(value: '${_seuilMin.round()}%', color: AppColors.red600,
+            bg: AppColors.red100),
+      ]),
+      SliderTheme(
+        data: _sliderTheme(context, AppColors.red600),
+        child: Slider(
+          value: _seuilMin, min: 10, max: 60, divisions: 50,
+          onChanged: (v) => setState(
+              () => _seuilMin = v > _seuilMax - 5 ? _seuilMax - 5 : v),
+        ),
+      ),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
+        Text('10%', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+        Text('60%', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+      ]),
+
+      const SizedBox(height: 16),
+      const Divider(height: 0.5, thickness: 0.5, color: Color(0xFFF0F5EB)),
+      const SizedBox(height: 16),
+
+      // ── HUMIDITÉ MAX ──────────────────────────────────────
+      const _SeuilLabel(icon: Icons.water_drop,
+          label: 'Humidité maximale', color: AppColors.green600),
+      const SizedBox(height: 6),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Text('Alerte si l\'humidité dépasse cette valeur',
+            style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+        _SeuilBadge(value: '${_seuilMax.round()}%', color: AppColors.green700,
+            bg: AppColors.green100),
+      ]),
+      SliderTheme(
+        data: _sliderTheme(context, AppColors.green600),
+        child: Slider(
+          value: _seuilMax, min: 40, max: 95, divisions: 55,
+          onChanged: (v) => setState(
+              () => _seuilMax = v < _seuilMin + 5 ? _seuilMin + 5 : v),
+        ),
+      ),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
+        Text('40%', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+        Text('95%', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+      ]),
+
+      const SizedBox(height: 16),
+      const Divider(height: 0.5, thickness: 0.5, color: Color(0xFFF0F5EB)),
+      const SizedBox(height: 16),
+
+      // ── TEMPÉRATURE ───────────────────────────────────────
+      const _SeuilLabel(icon: Icons.wb_sunny_outlined,
+          label: 'Température critique', color: AppColors.amber600),
+      const SizedBox(height: 6),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Text('Alerte si la température dépasse ce seuil',
+            style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+        _SeuilBadge(value: '${_tempCritique.round()}°C',
+            color: AppColors.amber800, bg: AppColors.amber100),
+      ]),
+      SliderTheme(
+        data: _sliderTheme(context, AppColors.amber600),
+        child: Slider(
+          value: _tempCritique, min: 25, max: 50, divisions: 25,
+          onChanged: (v) => setState(() => _tempCritique = v),
+        ),
+      ),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
+        Text('25°C', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+        Text('50°C', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+      ]),
+
+      const SizedBox(height: 16),
+
+      // ── Résumé visuel ─────────────────────────────────────
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: AppColors.bg, borderRadius: BorderRadius.circular(10)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+          _InfoPill(label: 'Hum. min', value: '${_seuilMin.round()}%',
+              color: AppColors.red600),
+          const Icon(Icons.remove, size: 12, color: AppColors.textMuted),
+          _InfoPill(label: 'Hum. max', value: '${_seuilMax.round()}%',
+              color: AppColors.green600),
+          const Icon(Icons.remove, size: 12, color: AppColors.textMuted),
+          _InfoPill(label: 'Temp. max', value: '${_tempCritique.round()}°C',
+              color: AppColors.amber800),
+        ]),
+      ),
+
+      const SizedBox(height: 14),
+
+      // ── Bouton enregistrer ────────────────────────────────
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _saveSeuil,
+          icon: const Icon(Icons.save_outlined, size: 16),
+          label: const Text('Enregistrer les seuils'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.green600,
+            foregroundColor: AppColors.white,
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(11)),
+            textStyle: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ),
+    ]),
+  );
+}
 
   // ── Irrigation manuelle ────────────────────────────────────────────────────
   Widget _buildIrrigationManuelle() {
@@ -1464,4 +1608,31 @@ class _MiniChart extends CustomPainter {
 
   @override
   bool shouldRepaint(_MiniChart old) => old.seuilMin != seuilMin || old.seuilMax != seuilMax;
+}
+class _SeuilLabel extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _SeuilLabel({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Icon(icon, size: 15, color: color),
+    const SizedBox(width: 6),
+    Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+  ]);
+}
+
+class _SeuilBadge extends StatelessWidget {
+  final String value;
+  final Color color, bg;
+  const _SeuilBadge({required this.value, required this.color, required this.bg});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+    child: Text(value,
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: color)),
+  );
 }

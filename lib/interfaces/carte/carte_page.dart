@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../app_colors.dart';
 import '../../widget.dart';
-import '../../services/auth_service.dart';
 import '../../services/champ_service.dart';
 import '../../services/capteur_service.dart';
+import '../../services/mesure_service.dart';
 import 'detail_capteur_page.dart';
 import 'parametre_champ_page.dart';
 
@@ -35,9 +35,9 @@ class _CarteScreenState extends State<CarteScreen> {
     setState(() => isLoading = true);
 
     try {
-      final auth           = context.read<AuthService>();
       final capteurService = context.read<CapteurService>();
       final champService   = context.read<ChampService>();
+      final mesureService  = context.read<MesureService>();
 
       final results = await Future.wait([
         capteurService.getCapteurs(),
@@ -47,7 +47,7 @@ class _CarteScreenState extends State<CarteScreen> {
       final capteursApi = results[0] as List;
       final champsApi   = results[1] as List;
 
-      // Pour chaque capteur, récupère la dernière humidité
+      // Pour chaque capteur, récupère la dernière humidité via MesureService
       final capteursMap = <Map<String, dynamic>>[];
       for (int i = 0; i < capteursApi.length; i++) {
         final c      = capteursApi[i];
@@ -56,16 +56,11 @@ class _CarteScreenState extends State<CarteScreen> {
         // Numéro d'ordre lisible : C1, C2, C3...
         final numCourt = 'C${i + 1}';
 
-        // Récupère la dernière mesure d'humidité
+        // Récupère la dernière mesure d'humidité via MesureService (centralisé)
         double humidite = 0;
         try {
-          final token = auth.token;
-          if (token != null) {
-            humidite = await capteurService.getDerniereHumidite(
-              capteurId: c.id,
-              token: token,
-            );
-          }
+          final mesure = await mesureService.getDerniereHumidite(c.id);
+          humidite = mesure?.valeur ?? 0;
         } catch (_) {
           humidite = 0;
         }
@@ -331,7 +326,7 @@ class _CarteScreenState extends State<CarteScreen> {
                           ),
 
                           // Popup capteur sélectionné
-                          Positioned(
+                          /*Positioned(
                             bottom: 10, left: 10, right: 10,
                             child: GestureDetector(
                               onTap: () => Navigator.push(
@@ -416,7 +411,7 @@ class _CarteScreenState extends State<CarteScreen> {
                                 ),
                               ),
                             ),
-                          ),
+                          ),*/
                         ],
                       ),
                     ),
@@ -456,7 +451,7 @@ class _CarteScreenState extends State<CarteScreen> {
                               ],
                             ),
                           ),
-                          /*Expanded(
+                          Expanded(
                             child: ListView.separated(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16),
@@ -484,7 +479,7 @@ class _CarteScreenState extends State<CarteScreen> {
                                 },
                               ),
                             ),
-                          ),*/
+                          ),
                           const SizedBox(height: 8),
                         ],
                       ),
@@ -576,7 +571,7 @@ class _CarteScreenState extends State<CarteScreen> {
 }
 
 // ── _CapteurListTile ──────────────────────────────────────────────────────────
-/*class _CapteurListTile extends StatelessWidget {
+class _CapteurListTile extends StatelessWidget {
   final Map<String, dynamic> capteur;
   final bool isSelected;
   final Color couleur, bg;
@@ -681,7 +676,7 @@ class _CarteScreenState extends State<CarteScreen> {
       ),
     );
   }
-}*/
+}
 
 // ── _ZonesPainter ─────────────────────────────────────────────────────────────
 class _ZonesPainter extends CustomPainter {

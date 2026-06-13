@@ -8,6 +8,7 @@ import '../../services/capteur_service.dart';
 import '../../services/seuil_service.dart';
 import '../../models/seuil.dart';
 import 'notifications_page.dart';
+import '../../services/mesure_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -21,18 +22,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _prenomUtilisateur = '';
   String _champInfo         = '--';
   String _initiales         = '?';
-
-  int    _humidite           = 0;
-  int    _temperature        = 0;
+  double? _temperature;
+  //int    _humidite           = 0;
+  //int    _temperature        = 0;
   int    _capteursActifs     = 0;
   int    _capteursTotalCount = 0;
   int    _alertesActives     = 0;
-  int    _seuil              = 0;
+  // Remplacez :
+int _seuil = 0;
+
+// Par :
+double? _humidite;       // dernière valeur reçue
+int    _seuilMin = 0;
+int    _seuilMax = 0;
 
   List<Map<String, dynamic>> _alertesRecentes = [];
 
   bool _isLoading     = true;
   bool _depuisBackend = false;
+  
 
   @override
   void initState() {
@@ -54,7 +62,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ]);
 
       final capteurs = results[0] as List;
-      final seuil    = results[1] as SeuilModel?;
+      final seuil = results[1] as SeuilModel?;
+  final seuilMin = seuil?.valeurMin.toInt() ?? 0;
+  final seuilMax = seuil?.valeurMax.toInt() ?? 0;
+  double? humMoy;
+double? tempMoy;
+if (capteurs.isNotEmpty) {
+  final mesureService = context.read<MesureService>();
+  final capteurIds = capteurs.map<String>((c) => c.id as String).toList();
+
+  final humFutures  = capteurIds.map((id) => mesureService.getDerniereHumidite(id));
+  final tempFutures = capteurIds.map((id) => mesureService.getDerniereTemperature(id));
+
+  final humResults  = await Future.wait(humFutures);
+  final tempResults = await Future.wait(tempFutures);
+
+  final humsValides  = humResults.whereType<MesureModel>().map((m) => m.valeur).toList();
+  final tempsValides = tempResults.whereType<MesureModel>().map((m) => m.valeur).toList();
+
+  if (humsValides.isNotEmpty)  humMoy  = humsValides.reduce((a, b) => a + b)  / humsValides.length;
+  if (tempsValides.isNotEmpty) tempMoy = tempsValides.reduce((a, b) => a + b) / tempsValides.length;
+}
 
       // ── Utilisateur depuis AuthService directement
       final user = auth.user;
@@ -104,6 +132,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'couleur': 'vert',
         });
       }
+// Alerte humidité hors seuil
+if (humMoy != null && seuilMin > 0 && seuilMax > 0) {
+  if (humMoy < seuilMin || humMoy > seuilMax) {
+    alertesCount++;
+    alertes.add({
+      'titre':   'Humidité hors seuil — ${humMoy.toStringAsFixed(1)}% '
+                 '(seuil : $seuilMin–$seuilMax%)',
+      'temps':   'Maintenant',
+      'couleur': 'rouge',
+    });
+  }
+}
+
+// Alerte température (basée sur valeurMax du seuil température si vous l'avez,
+// sinon gardez le seuil hardcodé à 35°C ou passez-le depuis le backend)
+if (tempMoy != null && tempMoy > 35) {
+  alertesCount++;
+  alertes.add({
+    'titre':   'Température élevée — ${tempMoy.toStringAsFixed(1)}°C',
+    'temps':   'Maintenant',
+    'couleur': 'ambre',
+  });
+}
+      // Température — dernière mesure de chaque capteur actif, en parallèle
+//double? tempMoy;
+if (capteurs.isNotEmpty) {
+  final mesureService = context.read<MesureService>();
+  final capteurIds    = capteurs.map<String>((c) => c.id as String).toList();
+
+  final tempResults = await Future.wait(
+    capteurIds.map((id) => mesureService.getDerniereTemperature(id)),
+  );
+
+  final tempsValides = tempResults
+      .whereType<MesureModel>()
+      .map((m) => m.valeur)
+      .toList();
+
+  if (tempsValides.isNotEmpty) {
+    tempMoy = tempsValides.reduce((a, b) => a + b) / tempsValides.length;
+  }
+}
 
       setState(() {
         _capteursTotalCount = total;
@@ -113,6 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _alertesRecentes    = alertes.take(3).toList();
         _depuisBackend      = true;
         _isLoading          = false;
+        _temperature = tempMoy;
       });
     } catch (_) {
       setState(() {
@@ -158,8 +229,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Text(
               _prenomUtilisateur.isNotEmpty
-                  ? 'Bonjour, $_prenomUtilisateur 👋'
-                  : 'Bonjour 👋',
+                  ? 'Bonjour, $_prenomUtilisateur '
+                  : 'Bonjour ',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
@@ -256,7 +327,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         badgeText: AppColors.green700,
                       ),
                       // Température — pas encore dans le backend → '--'
-                      MetricCard(
+                      /*MetricCard(
                         icon: Icons.wb_sunny_outlined,
                         iconBg: AppColors.amber100,
                         iconColor: AppColors.amber800,
@@ -266,7 +337,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         badge: '--',
                         badgeBg: AppColors.amber100,
                         badgeText: AppColors.amber800,
-                      ),
+                      ),*/
+                      MetricCard(
+  icon: Icons.wb_sunny_outlined,
+  iconBg:    (_temperature == null || _temperature! <= 35)
+      ? AppColors.amber100 : AppColors.red100,
+  iconColor: (_temperature == null || _temperature! <= 35)
+      ? AppColors.amber800 : AppColors.red800,
+  value: _temperature != null
+      ? _temperature!.toStringAsFixed(1) : '--',
+  unit:  _temperature != null ? '°C' : '',
+  label: 'Température moy.',
+  badge: _temperature == null ? '--'
+      : _temperature! > 35 ? ' Élevée'
+      : _temperature! < 15 ? ' Basse'
+      : '✓ Normale',
+  badgeBg:   (_temperature == null || _temperature! <= 35)
+      ? AppColors.amber100 : AppColors.red100,
+  badgeText: (_temperature == null || _temperature! <= 35)
+      ? AppColors.amber800 : AppColors.red800,
+),
                       MetricCard(
                         icon: Icons.sensors,
                         iconBg: _capteursActifs < _capteursTotalCount
