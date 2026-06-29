@@ -57,6 +57,21 @@ class MesureService extends ChangeNotifier {
     }
   }
 
+  // ── Humidité AIR — même endpoint que getDerniereHumidite pour l'instant ────
+  // Le backend ne distingue pas encore air/sol dans l'URL. Cet alias existe
+  // pour que l'appelant exprime son intention et pour que le jour où le
+  // backend ajoute un paramètre de type, un seul point de code change ici.
+  Future<MesureModel?> getDerniereHumiditeAir(String capteurId) =>
+      getDerniereHumidite(capteurId);
+
+  // ── Humidité SOL — backend ne filtre pas encore par type ────────────────
+  // TODO: appeler ?type=sol quand le backend l'exposera. Pour l'instant on
+  // retourne toujours null pour ne pas afficher une valeur "sol" qui est en
+  // réalité une valeur "air" récupérée sur le même endpoint.
+  Future<MesureModel?> getDerniereHumiditeSol(String capteurId) async {
+    return null;
+  }
+
   // ── Dernière température d'un capteur ─────────────────────────────────────
   Future<MesureModel?> getDerniereTemperature(String capteurId) async {
     try {

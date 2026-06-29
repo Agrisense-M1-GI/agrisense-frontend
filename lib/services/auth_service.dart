@@ -141,6 +141,21 @@ Future<void> init() async {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200) {
+        try {
+          // ✅ On valide le contrat API (token + utilisateur), même si on
+          // ne garde pas la session : ça détecte une réponse backend cassée.
+          final auth = AuthResponse.fromJson(body);
+          if (!auth.utilisateur.estValide || auth.token.isEmpty) {
+            _errorMessage = 'Réponse du serveur invalide';
+            _setLoading(false);
+            return false;
+          }
+        } on FormatException catch (e) {
+          _errorMessage = e.message;
+          _setLoading(false);
+          return false;
+        }
+
         // Inscription réussie → PAS de sauvegarde de session
         // L'utilisateur doit se connecter manuellement
         _setLoading(false);

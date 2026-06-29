@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'models/seuil.dart';
 
 // ─── Card générique ───────────────────────────────────────────────────────────
 class AppCard extends StatelessWidget {
@@ -91,6 +92,7 @@ class MetricCard extends StatelessWidget {
   final String badge;
   final Color badgeBg;
   final Color badgeText;
+  final String? subValue;
 
   const MetricCard({
     super.key,
@@ -103,6 +105,7 @@ class MetricCard extends StatelessWidget {
     required this.badge,
     required this.badgeBg,
     required this.badgeText,
+    this.subValue,
   });
 
   @override
@@ -163,6 +166,12 @@ class MetricCard extends StatelessWidget {
           Text(label,
               style:
                   const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          if (subValue != null) ...[
+            const SizedBox(height: 2),
+            Text(subValue!,
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textMuted)),
+          ],
           const SizedBox(height: 5),
           StatusPill(label: badge, bg: badgeBg, textColor: badgeText),
         ],
@@ -232,4 +241,49 @@ class ZoneRow extends StatelessWidget {
       ),
     );
   }
+}
+// ─── Helpers badge humidité/température (utilisés dans Dashboard + Monitoring) ─
+
+// '--' si seuil ou valeur manquants
+String badgeHumidite(double? valeur, SeuilModel? seuil) {
+  if (valeur == null || seuil == null) return '--';
+  if (valeur < seuil.valeurMin) return 'Critique';
+  if (valeur > seuil.valeurMax) return 'Excessive';
+  return 'Normale';
+}
+
+Color couleurHumidite(double? valeur, SeuilModel? seuil) {
+  if (valeur == null || seuil == null) return AppColors.textMuted;
+  if (valeur < seuil.valeurMin) return AppColors.red600;
+  if (valeur > seuil.valeurMax) return AppColors.amber600;
+  return AppColors.green600;
+}
+
+Color fondHumidite(double? valeur, SeuilModel? seuil) {
+  if (valeur == null || seuil == null) return AppColors.gray50;
+  if (valeur < seuil.valeurMin) return AppColors.red100;
+  if (valeur > seuil.valeurMax) return AppColors.amber100;
+  return AppColors.green100;
+}
+
+// Fonctionne SANS SeuilModel (seuils fixes 15°C / 35°C)
+String badgeTemperature(double? valeur) {
+  if (valeur == null) return '--';
+  if (valeur < 15) return 'Basse';
+  if (valeur > 35) return 'Élevée';
+  return 'Normale';
+}
+
+Color couleurTemperature(double? valeur) {
+  if (valeur == null) return AppColors.textMuted;
+  if (valeur < 15) return AppColors.blue700;
+  if (valeur > 35) return AppColors.red600;
+  return AppColors.amber800;
+}
+
+Color fondTemperature(double? valeur) {
+  if (valeur == null) return AppColors.gray50;
+  if (valeur < 15) return AppColors.blue100;
+  if (valeur > 35) return AppColors.red100;
+  return AppColors.amber100;
 }

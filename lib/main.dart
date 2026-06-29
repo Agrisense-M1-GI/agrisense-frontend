@@ -15,12 +15,16 @@ import 'config/api_config.dart';
 
 import 'interfaces/tableau_de_bord/tableau_page.dart';
 import 'interfaces/carte/carte_page.dart';
-import 'interfaces/irrigation/irrigation_page.dart';
+
+import 'interfaces/irrigation/monitoring_page.dart';
 import 'interfaces/images/images_page.dart';
 import 'interfaces/profil/profil_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await ApiConfig.init(); // charge l'override d'IP sauvegardé localement
+  debugPrint('🔧 ApiConfig.baseUrl utilisée par les services : ${ApiConfig.baseUrl}');
 
   final authService = AuthService();
   await authService.init(); // charge token + vérifie backend
@@ -187,7 +191,7 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     CarteScreen(),
-    IrrigationScreen(),
+    MonitoringScreen(),
     ImagesScreen(),
     ProfilScreen(),
   ];
@@ -232,7 +236,7 @@ class _MainShellState extends State<MainShell> {
             BottomNavigationBarItem(
                 icon: Icon(Icons.map_outlined), label: 'Carte'),
             BottomNavigationBarItem(
-                icon: Icon(Icons.water_drop_outlined), label: 'Irrigation'),
+                icon: Icon(Icons.water_drop_outlined), label: 'Monitoring'),
             BottomNavigationBarItem(
                 icon: Icon(Icons.photo_camera_outlined), label: 'Images'),
             BottomNavigationBarItem(

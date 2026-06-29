@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../app_colors.dart';
 import '../../widget.dart';
 import 'modifier_profil_page.dart';
+import 'parametre_serveur_page.dart';
 
 class ProfilScreen extends StatefulWidget {
   const ProfilScreen({super.key});
@@ -197,6 +198,18 @@ AppCard(
         icon: Icons.lock_outline,
         label: 'Sécurité',
         value: '',
+      ),
+
+      GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ParametreServeurScreen()),
+        ),
+        child: const _ProfileRow(
+          icon: Icons.dns_outlined,
+          label: 'Adresse du serveur',
+          value: '',
+        ),
       ),
 
       const _ProfileRow(

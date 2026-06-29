@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl  = TextEditingController();
+  final _professionCtrl = TextEditingController();
   bool  _showPwd      = false;
   bool  _showConfirm  = false;
 
@@ -44,6 +45,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
+    _professionCtrl.dispose();
     super.dispose();
   }
 
@@ -57,17 +59,14 @@ class _RegisterScreenState extends State<RegisterScreen>
       password:   _passwordCtrl.text,
       nom:        _nomCtrl.text.trim(),
       prenom:     _prenomCtrl.text.trim(),
-      profession: 'Agriculteur',
+      profession: _professionCtrl.text.trim(),
     );
 
     if (!mounted) return;
 
     if (success) {
-      // Déconnecter pour forcer une vraie connexion
-      await auth.logout();
-
-        
-
+      // register() ne sauvegarde déjà aucune session (par design) →
+      // pas besoin d'appeler logout() ici.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(children: [
@@ -203,6 +202,16 @@ class _RegisterScreenState extends State<RegisterScreen>
                       if (!v.contains('@')) return 'Email invalide';
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 14),
+
+                  AppField(
+                    controller: _professionCtrl,
+                    label:      'Profession',
+                    hint:       'Agriculteur, technicien...',
+                    icon:       Icons.work_outline,
+                    validator:  (v) => (v == null || v.trim().isEmpty)
+                        ? 'Profession requise' : null,
                   ),
                   const SizedBox(height: 14),
 

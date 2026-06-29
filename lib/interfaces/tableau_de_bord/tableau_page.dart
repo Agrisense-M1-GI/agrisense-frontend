@@ -9,6 +9,7 @@ import '../../services/seuil_service.dart';
 import '../../models/seuil.dart';
 import 'notifications_page.dart';
 import '../../services/mesure_service.dart';
+import '../irrigation/monitoring_page.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -22,13 +23,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _prenomUtilisateur = '';
   String _champInfo         = '--';
   String _initiales         = '?';
-  double? _temperature;
-  int    _humidite           = 0;
-  //int    _temperature        = 0;
+
+  SeuilModel? _seuil;          // null = pas encore configuré côté backend
+  double?     _humiditeAir;    // dernière valeur, premier capteur actif
+  double?     _humiditeSol;    // null pour l'instant (backend ne distingue
+                                // pas encore air/sol sur l'endpoint)
+  double?     _temperature;    // dernière valeur, premier capteur actif
+                                // (PAS de moyenne)
+  int?        _batterieMin;    // batterie la plus basse, tous capteurs
+
   int    _capteursActifs     = 0;
   int    _capteursTotalCount = 0;
   int    _alertesActives     = 0;
-  int    _seuil              = 0;
 
   List<Map<String, dynamic>> _alertesRecentes = [];
 
@@ -49,6 +55,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final auth           = context.read<AuthService>();
       final capteurService = context.read<CapteurService>();
       final seuilService   = context.read<SeuilService>();
+      final mesureService  = context.read<MesureService>();
 
       final results = await Future.wait([
         capteurService.getCapteurs(),
@@ -72,15 +79,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final alertesBatterie    = capteurs.where((c) =>
           c.etat != 'inactif' && (c.batterie as int? ?? 100) <= 20).length;
       final inactifs           = capteurs.where((c) => c.etat == 'inactif').length;
-      final alertesCount       = alertesBatterie + inactifs;
 
-      // ── Seuil
-      final seuilVal = seuil != null
-          ? seuil.valeurMin.toInt()
-          : 0;
+      // ── Batterie la plus basse, tous capteurs confondus
+      int? batterieMin;
+      for (final c in capteurs) {
+        final b = c.batterie as int?;
+        if (b != null && (batterieMin == null || b < batterieMin)) {
+          batterieMin = b;
+        }
+      }
+
+      // ── Premier capteur actif → température + humidité air/sol
+      double? temperature;
+      double? humiditeAir;
+      double? humiditeSol;
+      final premierActif = capteurs.cast<dynamic>().firstWhere(
+            (c) => c.etat == 'actif',
+            orElse: () => null,
+          );
+      if (premierActif != null) {
+        final id = premierActif.id as String;
+        final mesures = await Future.wait([
+          mesureService.getDerniereTemperature(id),
+          mesureService.getDerniereHumiditeAir(id),
+          mesureService.getDerniereHumiditeSol(id),
+        ]);
+        temperature = (mesures[0] as MesureModel?)?.valeur;
+        humiditeAir = (mesures[1] as MesureModel?)?.valeur;
+        humiditeSol = (mesures[2] as MesureModel?)?.valeur; // null pour l'instant
+      }
 
       // ── Alertes dynamiques
       final List<Map<String, dynamic>> alertes = [];
+
+      if (seuil == null) {
+        alertes.add({
+          'titre':   'Aucun seuil d\'humidité configuré',
+          'temps':   'Action requise',
+          'couleur': 'ambre',
+        });
+      }
 
       for (final c in capteurs.where((c) =>
           c.etat != 'inactif' && (c.batterie as int? ?? 100) <= 20)) {
@@ -107,47 +145,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
 
-      // Température — dernière mesure de chaque capteur actif, en parallèle
-double? tempMoy;
-if (capteurs.isNotEmpty) {
-  final mesureService = context.read<MesureService>();
-  final capteurIds    = capteurs.map<String>((c) => c.id as String).toList();
-
-  final tempResults = await Future.wait(
-    capteurIds.map((id) => mesureService.getDerniereTemperature(id)),
-  );
-
-  final tempsValides = tempResults
-      .whereType<MesureModel>()
-      .map((m) => m.valeur)
-      .toList();
-
-  if (tempsValides.isNotEmpty) {
-    tempMoy = tempsValides.reduce((a, b) => a + b) / tempsValides.length;
-  }
-}
+      final alertesCount = alertesBatterie + inactifs + (seuil == null ? 1 : 0);
 
       setState(() {
-        _capteursTotalCount = total;
-        _capteursActifs     = actifs;
-        _alertesActives     = alertesCount;
-        _seuil              = seuilVal;
-        _alertesRecentes    = alertes.take(3).toList();
-        _depuisBackend      = true;
-        _isLoading          = false;
-        _temperature = tempMoy;
+        _seuil               = seuil;
+        _humiditeAir         = humiditeAir;
+        _humiditeSol         = humiditeSol;
+        _temperature         = temperature;
+        _batterieMin         = batterieMin;
+        _capteursTotalCount  = total;
+        _capteursActifs      = actifs;
+        _alertesActives      = alertesCount;
+        _alertesRecentes     = alertes.take(3).toList();
+        _depuisBackend       = true;
+        _isLoading           = false;
       });
     } catch (_) {
       setState(() {
         _prenomUtilisateur  = '';
         _champInfo          = '--';
         _initiales          = '?';
-        _humidite           = 0;
-        _temperature        = 0;
+        _seuil              = null;
+        _humiditeAir        = null;
+        _humiditeSol        = null;
+        _temperature        = null;
+        _batterieMin        = null;
         _capteursActifs     = 0;
         _capteursTotalCount = 0;
         _alertesActives     = 0;
-        _seuil              = 0;
         _alertesRecentes    = [];
         _depuisBackend      = false;
         _isLoading          = false;
@@ -161,6 +186,38 @@ if (capteurs.isNotEmpty) {
       case 'ambre': return AppColors.amber600;
       default:      return AppColors.green600;
     }
+  }
+
+  Widget _buildBandeauSeuilManquant() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.amber100,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.amber600.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.warning_amber_outlined,
+            color: AppColors.amber800, size: 16),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            'Aucun seuil d\'humidité configuré. Les alertes sont désactivées.',
+            style: TextStyle(fontSize: 11, color: AppColors.amber800),
+          ),
+        ),
+        GestureDetector(
+          onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const MonitoringScreen())),
+          child: const Text('Configurer →',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.amber800)),
+        ),
+      ]),
+    );
   }
 
   @override
@@ -252,11 +309,20 @@ if (capteurs.isNotEmpty) {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              // Ajout d'un padding inférieur prenant en compte
+              // la safe area et la barre de navigation inférieure.
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                16 + MediaQuery.of(context).padding.bottom + 56.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SectionLabel('Vue d\'ensemble'),
+
+                  if (_seuil == null) _buildBandeauSeuilManquant(),
 
                   GridView.count(
                     crossAxisCount: 2,
@@ -264,51 +330,59 @@ if (capteurs.isNotEmpty) {
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 1.20,
+                    // Réduit l'aspect ratio pour augmenter la hauteur des cartes
+                    // afin d'éviter le débordement vertical du contenu.
+                    childAspectRatio: 1.00,
                     children: [
-                      // Humidité — pas encore dans le backend → '--'
+                      // CARTE 1 — Humidité air
                       MetricCard(
                         icon: Icons.water_drop_outlined,
-                        iconBg: AppColors.green100,
-                        iconColor: AppColors.green700,
-                        value: _seuil > 0 ? '$_seuil' : '--',
-                        unit: _seuil > 0 ? '%' : '',
-                        label: 'Seuil humidité',
-                        badge: _seuil > 0 ? '↑ Normal' : '--',
-                        badgeBg: AppColors.green100,
-                        badgeText: AppColors.green700,
+                        iconBg: AppColors.blue100,
+                        iconColor: AppColors.blue700,
+                        value: _humiditeAir != null
+                            ? _humiditeAir!.toStringAsFixed(1)
+                            : '--',
+                        unit: _humiditeAir != null ? '%' : '',
+                        label: 'Humidité air',
+                        badge: badgeHumidite(_humiditeAir, _seuil),
+                        badgeBg: fondHumidite(_humiditeAir, _seuil),
+                        badgeText: couleurHumidite(_humiditeAir, _seuil),
                       ),
-                      // Température — pas encore dans le backend → '--'
-                      /*MetricCard(
-                        icon: Icons.wb_sunny_outlined,
+
+                      // CARTE 2 — Humidité sol
+                      // TODO: utiliser ?type=sol quand le backend l'exposera
+                      MetricCard(
+                        icon: Icons.grass,
                         iconBg: AppColors.amber100,
                         iconColor: AppColors.amber800,
-                        value: '--',
-                        unit: '°C',
-                        label: 'Température',
-                        badge: '--',
-                        badgeBg: AppColors.amber100,
-                        badgeText: AppColors.amber800,
-                      ),*/
+                        value: _humiditeSol != null
+                            ? _humiditeSol!.toStringAsFixed(1)
+                            : '--',
+                        unit: _humiditeSol != null ? '%' : '',
+                        label: 'Humidité sol',
+                        badge: _humiditeSol == null
+                            ? 'Non disponible'
+                            : badgeHumidite(_humiditeSol, _seuil),
+                        badgeBg: fondHumidite(_humiditeSol, _seuil),
+                        badgeText: couleurHumidite(_humiditeSol, _seuil),
+                      ),
+
+                      // CARTE 3 — Température (1er capteur actif, pas de moyenne)
                       MetricCard(
-  icon: Icons.wb_sunny_outlined,
-  iconBg:    (_temperature == null || _temperature! <= 35)
-      ? AppColors.amber100 : AppColors.red100,
-  iconColor: (_temperature == null || _temperature! <= 35)
-      ? AppColors.amber800 : AppColors.red800,
-  value: _temperature != null
-      ? _temperature!.toStringAsFixed(1) : '--',
-  unit:  _temperature != null ? '°C' : '',
-  label: 'Température moy.',
-  badge: _temperature == null ? '--'
-      : _temperature! > 35 ? ' Élevée'
-      : _temperature! < 15 ? ' Basse'
-      : '✓ Normale',
-  badgeBg:   (_temperature == null || _temperature! <= 35)
-      ? AppColors.amber100 : AppColors.red100,
-  badgeText: (_temperature == null || _temperature! <= 35)
-      ? AppColors.amber800 : AppColors.red800,
-),
+                        icon: Icons.wb_sunny_outlined,
+                        iconBg: fondTemperature(_temperature),
+                        iconColor: couleurTemperature(_temperature),
+                        value: _temperature != null
+                            ? _temperature!.toStringAsFixed(1)
+                            : '--',
+                        unit: _temperature != null ? '°C' : '',
+                        label: 'Température',
+                        badge: badgeTemperature(_temperature),
+                        badgeBg: fondTemperature(_temperature),
+                        badgeText: couleurTemperature(_temperature),
+                      ),
+
+                      // CARTE 4 — Capteurs actifs
                       MetricCard(
                         icon: Icons.sensors,
                         iconBg: _capteursActifs < _capteursTotalCount
@@ -322,10 +396,15 @@ if (capteurs.isNotEmpty) {
                             ? '/$_capteursTotalCount'
                             : '',
                         label: 'Capteurs actifs',
+                        subValue: _batterieMin != null
+                            ? '🔋 $_batterieMin%'
+                            : null,
                         badge: badgeCapteurs,
                         badgeBg: badgeCapteursBg,
                         badgeText: badgeCapteursText,
                       ),
+
+                      // CARTE 5 — Alertes actives
                       MetricCard(
                         icon: Icons.warning_amber_outlined,
                         iconBg: _alertesActives > 0
@@ -378,7 +457,8 @@ if (capteurs.isNotEmpty) {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: CustomPaint(
-                            painter: HumidityChartPainter(seuil: _seuil),
+                            painter: HumidityChartPainter(
+                                seuil: _seuil?.valeurMin.toInt() ?? 60),
                             child: const SizedBox.expand(),
                           ),
                         ),

@@ -96,7 +96,9 @@ class _CarteScreenState extends State<CarteScreen> {
         _selectedCapteur = 0;
         isLoading        = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ carte_page loadData() a échoué : $e');
+      debugPrint('$st');
       setState(() {
         capteurs         = [];
         champs           = [];
