@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import 'package:provider/provider.dart';
 import '../../app_colors.dart';
@@ -259,6 +260,17 @@ AppCard(
               ),
             ),
             const SizedBox(height: 8),
+
+
+            TextButton(
+  onPressed: () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('agrisense_onboarding_termine');
+  },
+  child: const Text('Réinitialiser onboarding (debug)'),
+),
+
+const SizedBox(height: 8),
           ],
         ),
       ),

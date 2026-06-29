@@ -1,267 +1,6 @@
-/*import 'package:flutter/material.dart';
-import '../../app_colors.dart';
-import '../../widget.dart';
-import 'details_image_page.dart';
-import 'historique_image_page.dart';
-import 'analyse_ia_page.dart';
-import 'image_model.dart';
-
-class ImagesScreen extends StatefulWidget {
-  const ImagesScreen({super.key});
-  @override
-  State<ImagesScreen> createState() => _ImagesScreenState();
-}
-
-class _ImagesScreenState extends State<ImagesScreen> {
-  String _capteurSel = 'C1';
-  String _filtre = 'Toutes';
-  final List<String> _capteurs = ['C1','C2','C3','C4','C5','C6','C7','C8'];
-  final List<String> _filtres = ['Toutes','Alertes','Analysées','Normales'];
-
-  List<CaptureImage> get _imgsFiltrees {
-    if (_filtre == 'Alertes')   return mockImages.where((i) => i.statut == 'alerte').toList();
-    if (_filtre == 'Analysées') return mockImages.where((i) => i.statut == 'analysee').toList();
-    if (_filtre == 'Normales')  return mockImages.where((i) => i.statut == 'normale').toList();
-    return mockImages;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final info = infoCapteurs[_capteurSel]!;
-    final alertCount = mockImages.where((i) => i.statut == 'alerte').length;
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-          Text('Images & capteurs'),
-          Text('Analyse visuelle du champ', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
-        ]),
-        actions: [
-          if (alertCount > 0)
-            Stack(children: [
-              IconButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AnalyseIaScreen())),
-                icon: const Icon(Icons.auto_awesome_outlined, color: AppColors.green700),
-              ),
-              Positioned(top:6,right:6,child: Container(
-                width:16,height:16,
-                decoration: const BoxDecoration(color: AppColors.red600, shape: BoxShape.circle),
-                child: Center(child: Text('$alertCount', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700))),
-              )),
-            ]),
-          IconButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoriqueImagesScreen())),
-            icon: Container(
-              width:34,height:34,
-              decoration: BoxDecoration(color: AppColors.green100, borderRadius: BorderRadius.circular(9)),
-              child: const Icon(Icons.history, color: AppColors.green700, size:18),
-            ),
-          ),
-          const SizedBox(width:8),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-          // Sélecteur capteur
-          SizedBox(height:38, child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _capteurs.length,
-            separatorBuilder: (_,__) => const SizedBox(width:7),
-            itemBuilder: (_,i) {
-              final c = _capteurs[i];
-              final sel = _capteurSel == c;
-              final inf = infoCapteurs[c]!;
-              return GestureDetector(
-                onTap: () => setState(() => _capteurSel = c),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal:14, vertical:8),
-                  decoration: BoxDecoration(
-                    color: sel ? statutBg(inf['statut']!) : AppColors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: sel ? statutColor(inf['statut']!) : AppColors.border, width: sel?1.5:0.5),
-                  ),
-                  child: Row(children: [
-                    Text(c, style: TextStyle(fontSize:12, fontWeight: sel?FontWeight.w600:FontWeight.normal, color: sel?statutColor(inf['statut']!):AppColors.textMuted)),
-                    if (inf['statut']=='alerte') ...[const SizedBox(width:4), Container(width:6,height:6,decoration: const BoxDecoration(color:AppColors.red600,shape:BoxShape.circle))],
-                  ]),
-                ),
-              );
-            },
-          )),
-
-          const SizedBox(height:14),
-
-          // Carte capteur
-          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('$_capteurSel — ${info['zone']}', style: const TextStyle(fontSize:13, fontWeight:FontWeight.w500, color:AppColors.text)),
-              StatusPill(label: statutLabel(info['statut']!), bg: statutBg(info['statut']!), textColor: statutColor(info['statut']!)),
-            ]),
-            const SizedBox(height:11),
-            Row(children: [
-              _Stat(label:'Batterie', value:info['batterie']!),
-              const SizedBox(width:8),
-              _Stat(label:'Signal',   value:info['signal']!),
-              const SizedBox(width:8),
-              _Stat(label:'Surface',  value:info['surface']!),
-              const SizedBox(width:8),
-              _Stat(label:'Dernière img', value:info['derniere']!),
-            ]),
-            const SizedBox(height:11),
-            SizedBox(width:double.infinity, child: ElevatedButton.icon(
-              onPressed: () => _dialogPrise(context),
-              icon: const Icon(Icons.camera_alt_outlined, size:15),
-              label: const Text('Prendre une image maintenant'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.green600, foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(vertical:11),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-                textStyle: const TextStyle(fontSize:13, fontWeight:FontWeight.w500),
-              ),
-            )),
-          ])),
-
-          const SizedBox(height:16),
-
-          // Filtres + titre
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const SectionLabel('Dernières captures'),
-            GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoriqueImagesScreen())),
-              child: const Text('Voir tout', style: TextStyle(fontSize:12, color:AppColors.green700)),
-            ),
-          ]),
-          const SizedBox(height:8),
-          SizedBox(height:32, child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _filtres.length,
-            separatorBuilder: (_,__) => const SizedBox(width:7),
-            itemBuilder: (_,i) {
-              final f = _filtres[i];
-              final sel = _filtre == f;
-              return GestureDetector(
-                onTap: () => setState(() => _filtre = f),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds:150),
-                  padding: const EdgeInsets.symmetric(horizontal:13, vertical:6),
-                  decoration: BoxDecoration(
-                    color: sel ? AppColors.green100 : AppColors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: sel?AppColors.green600:AppColors.border, width:sel?1.5:0.5),
-                  ),
-                  child: Text(f, style: TextStyle(fontSize:11, fontWeight:sel?FontWeight.w500:FontWeight.normal, color:sel?AppColors.green700:AppColors.textMuted)),
-                ),
-              );
-            },
-          )),
-
-          const SizedBox(height:12),
-
-          // Grille images
-          GridView.builder(
-            shrinkWrap:true, physics:const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2, crossAxisSpacing:9, mainAxisSpacing:9, childAspectRatio:0.95),
-            itemCount: _imgsFiltrees.length,
-            itemBuilder: (ctx,i) {
-              final img = _imgsFiltrees[i];
-              return GestureDetector(
-                onTap: () => Navigator.push(ctx, MaterialPageRoute(builder:(_) => DetailImageScreen(image:img))),
-                child: ImageCard(image:img),
-              );
-            },
-          ),
-
-          const SizedBox(height:16),
-
-          // Reco IA
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const SectionLabel('Recommandations IA'),
-            GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder:(_) => const AnalyseIaScreen())),
-              child: const Text('Voir tout', style: TextStyle(fontSize:12, color:AppColors.green700)),
-            ),
-          ]),
-          const SizedBox(height:8),
-
-          RecoCard(icon:Icons.warning_amber_rounded, iconBg:AppColors.red100, iconColor:AppColors.red600,
-            titre:'Jaunissement — Zone B',
-            description:'Jaunissement partiel détecté. Vérifier l\'apport en azote et l\'état racinaire.',
-            depuis:'Il y a 2h', confiance:84, priorite:'Élevée', prioriteBg:AppColors.red100, prioriteColor:AppColors.red800,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder:(_) => const AnalyseIaScreen())),
-          ),
-          const SizedBox(height:8),
-          RecoCard(icon:Icons.opacity, iconBg:AppColors.amber100, iconColor:AppColors.amber600,
-            titre:'Sécheresse foliaire — Zone B',
-            description:'Feuilles desséchées sur C4. Envisager irrigation ciblée sous 24h.',
-            depuis:'Il y a 5h', confiance:79, priorite:'Moyenne', prioriteBg:AppColors.amber100, prioriteColor:AppColors.amber800,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder:(_) => const AnalyseIaScreen())),
-          ),
-          const SizedBox(height:8),
-          RecoCard(icon:Icons.shield_outlined, iconBg:AppColors.green100, iconColor:AppColors.green700,
-            titre:'Zone A en bonne santé',
-            description:'Végétation dense et uniforme. Croissance conforme au stade actuel.',
-            depuis:'Il y a 2h', confiance:92, priorite:'OK', prioriteBg:AppColors.green100, prioriteColor:AppColors.green700,
-            onTap: () {},
-          ),
-          const SizedBox(height:8),
-        ]),
-      ),
-    );
-  }
-
-  void _dialogPrise(BuildContext context) {
-    showDialog(context:context, builder:(_) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text('Prise d\'image — $_capteurSel', style: const TextStyle(fontSize:15, fontWeight:FontWeight.w500, color:AppColors.text)),
-      content: Column(mainAxisSize:MainAxisSize.min, children:[
-        Container(width:60,height:60,decoration:BoxDecoration(color:AppColors.green100,shape:BoxShape.circle),
-          child:const Icon(Icons.camera_alt, color:AppColors.green700, size:28)),
-        const SizedBox(height:12),
-        Text('Déclencher la caméra du capteur $_capteurSel (${infoCapteurs[_capteurSel]!['zone']}) ?',
-          textAlign:TextAlign.center, style:const TextStyle(fontSize:13, color:AppColors.textMuted)),
-      ]),
-      actions:[
-        TextButton(onPressed:()=>Navigator.pop(context), child:const Text('Annuler',style:TextStyle(color:AppColors.textMuted))),
-        ElevatedButton.icon(
-          onPressed:(){
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content:Text('Image déclenchée sur $_capteurSel !'),
-              backgroundColor:AppColors.green700, behavior:SnackBarBehavior.floating,
-              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),
-            ));
-          },
-          icon:const Icon(Icons.camera_alt,size:15), label:const Text('Déclencher'),
-          style:ElevatedButton.styleFrom(backgroundColor:AppColors.green600,foregroundColor:AppColors.white,
-            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
-        ),
-      ],
-    ));
-  }
-}
-
-class _Stat extends StatelessWidget {
-  final String label, value;
-  const _Stat({required this.label, required this.value});
-  @override
-  Widget build(BuildContext context) => Expanded(child: Container(
-    padding:const EdgeInsets.all(8),
-    decoration:BoxDecoration(color:AppColors.bg, borderRadius:BorderRadius.circular(9)),
-    child:Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
-      Text(label, style:const TextStyle(fontSize:10,color:AppColors.textMuted)),
-      const SizedBox(height:2),
-      Text(value, style:const TextStyle(fontSize:12,fontWeight:FontWeight.w500,color:AppColors.text)),
-    ]),
-  ));
-}
-*/
-
 
 // lib/interfaces/images/images_page.dart
-import 'package:flutter/material.dart';
+/*import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app_colors.dart';
@@ -1474,4 +1213,1817 @@ class _InfoRow extends StatelessWidget {
               fontWeight: FontWeight.w500, color: AppColors.text))),
     ]),
   );
+}
+*/
+
+
+
+
+/*
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../app_colors.dart';
+import '../../widget.dart';
+import '../../models/image.dart';
+import '../../models/capteur.dart';
+import '../../services/image_service.dart';
+import '../../services/capteur_service.dart';
+import '../../services/ia_service.dart';
+import 'details_image_page.dart';
+import 'historique_image_page.dart';
+import 'analyse_ia_page.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ImagesScreen
+// Connecté à :
+//   GET /api/capteurs                   → liste des capteurs
+//   GET /api/images/:capteur_id         → images du capteur sélectionné
+//   POST /api/capturer                  → déclenchement capture (polling)
+//   GET /api/ia/statut                  → badge disponibilité IA
+// ─────────────────────────────────────────────────────────────────────────────
+class ImagesScreen extends StatefulWidget {
+  const ImagesScreen({super.key});
+
+  @override
+  State<ImagesScreen> createState() => _ImagesScreenState();
+}
+
+class _ImagesScreenState extends State<ImagesScreen> {
+  // ── État ──────────────────────────────────────────────────────────────────
+  List<CapteurModel>  _capteurs      = [];
+  CapteurModel?       _capteurSel;
+  List<CaptureImage>  _images        = [];
+  String              _filtre        = 'Toutes';
+  bool                _isLoading     = true;
+  bool                _isCapturing   = false;
+  bool                _iaDisponible  = false;
+
+  final List<String> _filtres = ['Toutes', 'Alertes', 'Analysées', 'En attente'];
+
+  // ── Filtrage local ─────────────────────────────────────────────────────────
+  List<CaptureImage> get _imgsFiltrees {
+    switch (_filtre) {
+      case 'Alertes':    return _images.where((i) => i.statut == 'alerte').toList();
+      case 'Analysées':  return _images.where((i) => i.statut == 'analysee').toList();
+      case 'En attente': return _images.where((i) => i.statut == 'en_attente').toList();
+      default:           return _images;
+    }
+  }
+
+  int get _alertesCount => _images.where((i) => i.statut == 'alerte').length;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitial();
+  }
+
+  // ── Chargement initial : capteurs + statut IA ─────────────────────────────
+  Future<void> _loadInitial() async {
+    setState(() => _isLoading = true);
+    try {
+      final capteurService = context.read<CapteurService>();
+      final iaService      = context.read<IaService>();
+
+      final results = await Future.wait([
+        capteurService.getCapteurs(),
+        iaService.isDisponible(),
+      ]);
+
+      final capteurs     = results[0] as List<CapteurModel>;
+      final iaDisponible = results[1] as bool;
+
+      setState(() {
+        _capteurs     = capteurs;
+        _iaDisponible = iaDisponible;
+        if (capteurs.isNotEmpty) _capteurSel = capteurs.first;
+      });
+
+      if (_capteurSel != null) await _loadImages(_capteurSel!);
+    } catch (e) {
+      _showError('Erreur de chargement : $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ── GET /api/images/:capteur_id ────────────────────────────────────────────
+  Future<void> _loadImages(CapteurModel capteur) async {
+    setState(() => _isLoading = true);
+    try {
+      final imageService = context.read<ImageService>();
+      final images = await imageService.getImagesCapteur(capteur);
+      // Trier par date décroissante
+      images.sort((a, b) {
+        if (a.dateCapture == null && b.dateCapture == null) return 0;
+        if (a.dateCapture == null) return 1;
+        if (b.dateCapture == null) return -1;
+        return b.dateCapture!.compareTo(a.dateCapture!);
+      });
+      if (mounted) setState(() => _images = images);
+    } catch (e) {
+      _showError('Impossible de charger les images : $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ── POST /api/capturer + polling ───────────────────────────────────────────
+  Future<void> _prendreImage() async {
+    if (_capteurSel == null || _isCapturing) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Déclencher une capture',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        content: Text(
+          'Demander une photo à ${_capteurSel!.nom} maintenant ?',
+          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler',
+                style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Capturer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _isCapturing = true);
+    try {
+      // TODO: Appeler POST /api/capturer/:capteur_id puis poll GET /api/capturer/:job_id
+      // jusqu'à statut != 'en_attente', puis recharger les images.
+      // Voir API_DOCUMENTATION.md §11 pour le flow complet.
+      await Future.delayed(const Duration(seconds: 3)); // placeholder
+      await _loadImages(_capteurSel!);
+      _showSuccess('Capture déclenchée sur ${_capteurSel!.nom}');
+    } catch (e) {
+      _showError('Erreur capture : $e');
+    } finally {
+      if (mounted) setState(() => _isCapturing = false);
+    }
+  }
+
+  void _showSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(fontSize: 13)),
+      backgroundColor: AppColors.green700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.all(14),
+    ));
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(fontSize: 13)),
+      backgroundColor: AppColors.red600,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.all(14),
+    ));
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Images & capteurs'),
+            Text('Analyse visuelle du champ',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          ],
+        ),
+        actions: [
+          // Badge IA disponible
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Tooltip(
+              message: _iaDisponible ? 'IA en ligne' : 'IA hors ligne',
+              child: Icon(
+                Icons.psychology_outlined,
+                color: _iaDisponible ? AppColors.green600 : AppColors.textMuted,
+                size: 20,
+              ),
+            ),
+          ),
+          // Bouton IA avec badge d'alertes
+          if (_alertesCount > 0)
+            Stack(children: [
+              IconButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AnalyseIaScreen()),
+                ),
+                icon: const Icon(Icons.auto_awesome_outlined,
+                    color: AppColors.green700),
+              ),
+              Positioned(
+                top: 6, right: 6,
+                child: Container(
+                  width: 16, height: 16,
+                  decoration: const BoxDecoration(
+                      color: AppColors.red600, shape: BoxShape.circle),
+                  child: Center(
+                    child: Text('$_alertesCount',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+            ]),
+          IconButton(
+            onPressed: _capteurSel == null ? null : () => _loadImages(_capteurSel!),
+            icon: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                  color: AppColors.green100,
+                  borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.refresh,
+                  color: AppColors.green700, size: 17),
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => HistoriqueImagesScreen(
+                        capteurs: _capteurs,
+                      )),
+            ),
+            icon: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                  color: AppColors.green100,
+                  borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.history,
+                  color: AppColors.green700, size: 18),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: _isLoading && _capteurs.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: () => _capteurSel != null
+                  ? _loadImages(_capteurSel!)
+                  : _loadInitial(),
+              color: AppColors.green600,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Sélecteur capteurs ─────────────────────────────────
+                    if (_capteurs.isNotEmpty)
+                      SizedBox(
+                        height: 38,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _capteurs.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 7),
+                          itemBuilder: (_, i) {
+                            final c   = _capteurs[i];
+                            final sel = _capteurSel?.id == c.id;
+                            final isActif = c.etat == 'actif';
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() => _capteurSel = c);
+                                _loadImages(c);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: sel
+                                      ? (isActif
+                                          ? AppColors.green100
+                                          : AppColors.amber100)
+                                      : AppColors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: sel
+                                        ? (isActif
+                                            ? AppColors.green600
+                                            : AppColors.amber600)
+                                        : AppColors.border,
+                                    width: sel ? 1.5 : 0.5,
+                                  ),
+                                ),
+                                child: Row(children: [
+                                  Text(
+                                    c.nom,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: sel
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                      color: sel
+                                          ? (isActif
+                                              ? AppColors.green700
+                                              : AppColors.amber800)
+                                          : AppColors.textMuted,
+                                    ),
+                                  ),
+                                  if (!isActif) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: const BoxDecoration(
+                                            color: AppColors.amber600,
+                                            shape: BoxShape.circle)),
+                                  ],
+                                ]),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                    const SizedBox(height: 14),
+
+                    // ── Carte capteur sélectionné ──────────────────────────
+                    if (_capteurSel != null)
+                      _CapteurInfoCard(
+                        capteur: _capteurSel!,
+                        imageCount: _images.length,
+                        alerteCount: _alertesCount,
+                        isCapturing: _isCapturing,
+                        onCapture: _prendreImage,
+                      ),
+
+                    if (_capteurs.isEmpty)
+                      _buildEmpty(),
+
+                    const SizedBox(height: 16),
+
+                    // ── Filtres + grille images ────────────────────────────
+                    if (_images.isNotEmpty || _isLoading) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const SectionLabel('Dernières captures'),
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => HistoriqueImagesScreen(
+                                        capteurs: _capteurs,
+                                        capteurInitial: _capteurSel,
+                                      )),
+                            ),
+                            child: const Text('Voir tout',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.green700)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Filtres
+                      SizedBox(
+                        height: 32,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _filtres.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 7),
+                          itemBuilder: (_, i) {
+                            final f   = _filtres[i]; 
+                            final sel = _filtre == f;
+                            return GestureDetector(
+                              onTap: () => setState(() => _filtre = f),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 13, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: sel
+                                      ? AppColors.green100
+                                      : AppColors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: sel
+                                          ? AppColors.green600
+                                          : AppColors.border,
+                                      width: sel ? 1.5 : 0.5),
+                                ),
+                                child: Text(f,
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: sel
+                                            ? FontWeight.w500
+                                            : FontWeight.normal,
+                                        color: sel
+                                            ? AppColors.green700
+                                            : AppColors.textMuted)),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Grille ou loader
+                      if (_isLoading)
+                        const Center(
+                            child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator(),
+                        ))
+                      else if (_imgsFiltrees.isEmpty)
+                        _buildEmptyFilter()
+                      else
+                        _buildGrille(),
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    // ── Lien vers analyse IA ────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const SectionLabel('Analyse IA'),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AnalyseIaScreen())),
+                          child: const Text('Voir tout',
+                              style: TextStyle(
+                                  fontSize: 12, color: AppColors.green700)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _IaBannerCard(
+                      iaDisponible: _iaDisponible,
+                      alertesCount: _alertesCount,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AnalyseIaScreen()),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildGrille() {
+    final imageService = context.read<ImageService>();
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 9,
+          mainAxisSpacing: 9,
+          childAspectRatio: 0.95),
+      itemCount: _imgsFiltrees.length,
+      itemBuilder: (ctx, i) {
+        final img = _imgsFiltrees[i];
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            ctx,
+            MaterialPageRoute(
+              builder: (_) => DetailImageScreen(
+                image: img,
+                capteur: _capteurSel!,
+              ),
+            ),
+          ),
+          child: _ImageCard(
+              image: img,
+              imageUrl: imageService.buildImageUrl(img.cheminStockage)),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmpty() => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.amber100.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.amber600.withOpacity(0.3)),
+        ),
+        child: const Row(children: [
+          Icon(Icons.info_outline, color: AppColors.amber800, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+              child: Text(
+            'Aucun capteur disponible. Ajoutez des capteurs depuis la page Carte.',
+            style: TextStyle(fontSize: 12, color: AppColors.amber800),
+          )),
+        ]),
+      );
+
+  Widget _buildEmptyFilter() => Container(
+        margin: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border, width: 0.5)),
+        child: Center(
+          child: Text(
+            'Aucune image pour le filtre "$_filtre".',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+        ),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _CapteurInfoCard
+// ─────────────────────────────────────────────────────────────────────────────
+class _CapteurInfoCard extends StatelessWidget {
+  final CapteurModel capteur;
+  final int imageCount;
+  final int alerteCount;
+  final bool isCapturing;
+  final VoidCallback onCapture;
+
+  const _CapteurInfoCard({
+    required this.capteur,
+    required this.imageCount,
+    required this.alerteCount,
+    required this.isCapturing,
+    required this.onCapture,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isActif  = capteur.etat == 'actif';
+    final batterie = capteur.batterie ?? 100;
+    final batColor = batterie > 40
+        ? AppColors.green600
+        : batterie > 20
+            ? AppColors.amber600
+            : AppColors.red600;
+
+    return AppCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Expanded(
+            child: Text(capteur.nom,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.text)),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+                color: isActif ? AppColors.green100 : AppColors.gray50,
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(
+              isActif ? 'Actif' : 'Inactif',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: isActif
+                      ? AppColors.green700
+                      : AppColors.textMuted),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          _StatPill(
+              icon: Icons.battery_full,
+              color: batColor,
+              value: '$batterie%'),
+          const SizedBox(width: 8),
+          _StatPill(
+              icon: Icons.photo_library_outlined,
+              color: AppColors.green600,
+              value: '$imageCount image${imageCount > 1 ? "s" : ""}'),
+          if (alerteCount > 0) ...[
+            const SizedBox(width: 8),
+            _StatPill(
+                icon: Icons.warning_amber_outlined,
+                color: AppColors.red600,
+                value: '$alerteCount alerte${alerteCount > 1 ? "s" : ""}'),
+          ],
+        ]),
+        if (capteur.derniere_connexion != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Dernière connexion : ${_formatDate(capteur.derniere_connexion!)}',
+            style: const TextStyle(
+                fontSize: 10, color: AppColors.textMuted),
+          ),
+        ],
+        const SizedBox(height: 11),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: isActif && !isCapturing ? onCapture : null,
+            icon: isCapturing
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.camera_alt_outlined, size: 15),
+            label: Text(isCapturing
+                ? 'Capture en cours…'
+                : 'Prendre une image maintenant'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green600,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppColors.green200,
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              textStyle: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  String _formatDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')} à '
+          '${d.hour.toString().padLeft(2, '0')}h${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String value;
+  const _StatPill(
+      {required this.icon, required this.color, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(value,
+            style: TextStyle(
+                fontSize: 11,
+                color: color,
+                fontWeight: FontWeight.w500)),
+      ]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _IaBannerCard — bannière vers AnalyseIaScreen
+// ─────────────────────────────────────────────────────────────────────────────
+class _IaBannerCard extends StatelessWidget {
+  final bool iaDisponible;
+  final int alertesCount;
+  final VoidCallback onTap;
+
+  const _IaBannerCard({
+    required this.iaDisponible,
+    required this.alertesCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+                color: iaDisponible
+                    ? AppColors.green100
+                    : AppColors.gray50,
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.psychology_outlined,
+                color: iaDisponible
+                    ? AppColors.green600
+                    : AppColors.textMuted,
+                size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Row(children: [
+                  Text(
+                    iaDisponible ? 'IA disponible' : 'IA hors ligne',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.text),
+                  ),
+                  if (alertesCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: AppColors.red100,
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text('$alertesCount alerte${alertesCount > 1 ? "s" : ""}',
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.red800)),
+                    ),
+                  ],
+                ]),
+                Text(
+                  iaDisponible
+                      ? 'Analyser, diagnostiquer, prédire les cultures'
+                      : 'Vérifiez la connexion au serveur Flask',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textMuted),
+                ),
+              ])),
+          const Icon(Icons.chevron_right,
+              color: AppColors.textMuted, size: 18),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _ImageCard — vignette grille
+// ─────────────────────────────────────────────────────────────────────────────
+class _ImageCard extends StatelessWidget {
+  final CaptureImage image;
+  final String imageUrl;
+  const _ImageCard({required this.image, required this.imageUrl});
+
+  Color get _badgeBg {
+    switch (image.statut) {
+      case 'alerte':     return AppColors.red100;
+      case 'analysee':   return AppColors.green100;
+      case 'en_attente': return AppColors.amber100;
+      default:           return const Color(0xFFF5F7F2);
+    }
+  }
+
+  Color get _badgeColor {
+    switch (image.statut) {
+      case 'alerte':     return AppColors.red800;
+      case 'analysee':   return AppColors.green700;
+      case 'en_attente': return AppColors.amber800;
+      default:           return AppColors.textMuted;
+    }
+  }
+
+  String get _badgeLabel {
+    switch (image.statut) {
+      case 'alerte':     return 'Alerte';
+      case 'analysee':   return 'Analysée';
+      case 'en_attente': return 'En attente';
+      default:           return 'Reçue';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(fit: StackFit.expand, children: [
+        Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          loadingBuilder: (_, child, p) => p == null
+              ? child
+              : Container(
+                  color: AppColors.green100,
+                  child: const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.green600, strokeWidth: 2))),
+          errorBuilder: (_, __, ___) => Container(
+              color: AppColors.green100,
+              child: const Center(
+                  child: Icon(Icons.image_not_supported_outlined,
+                      color: AppColors.green600, size: 32))),
+        ),
+        // Gradient bas
+        Positioned(
+          bottom: 0, left: 0, right: 0,
+          child: Container(
+            height: 70,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ),
+        // Badge statut
+        Positioned(
+          top: 7, right: 7,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+                color: _badgeBg.withOpacity(0.92),
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(_badgeLabel,
+                style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: _badgeColor)),
+          ),
+        ),
+        if (image.statut == 'alerte')
+          const Positioned(
+              top: 7,
+              left: 7,
+              child: Icon(Icons.warning_amber_rounded,
+                  color: AppColors.red600, size: 18)),
+        if (image.statut == 'en_attente')
+          const Positioned(
+              top: 10,
+              left: 10,
+              child: SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.amber600))),
+        // Info bas
+        Positioned(
+          bottom: 7, left: 8, right: 8,
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(image.capteurNom,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text(
+                  '${image.dateFormatee} · ${image.heureFormatee}',
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 9),
+                ),
+              ]),
+        ),
+      ]),
+    );
+  }
+}*/
+// lib/interfaces/images/images_page.dart
+// ─────────────────────────────────────────────────────────────────────────────
+// Connecté à :
+//   GET  /api/capteurs               → liste des capteurs
+//   GET  /api/images/:capteur_id     → images du capteur sélectionné
+//   POST /api/capturer               → déclenchement capture (polling)
+//   GET  /api/ia/statut              → badge disponibilité IA
+// ─────────────────────────────────────────────────────────────────────────────
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../app_colors.dart';
+import '../../widget.dart';
+import '../../models/image.dart';
+import '../../models/capteur.dart';
+import '../../services/image_service.dart';
+import '../../services/capteur_service.dart';
+import '../../services/ia_service.dart';
+import 'details_image_page.dart';
+import 'historique_image_page.dart';
+import 'analyse_ia_page.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ImagesScreen
+// ─────────────────────────────────────────────────────────────────────────────
+class ImagesScreen extends StatefulWidget {
+  const ImagesScreen({super.key});
+
+  @override
+  State<ImagesScreen> createState() => _ImagesScreenState();
+}
+
+class _ImagesScreenState extends State<ImagesScreen> {
+  List<CapteurModel> _capteurs     = [];
+  CapteurModel?      _capteurSel;
+  List<CaptureImage> _images       = [];
+  String             _filtre       = 'Toutes';
+  bool               _isLoading    = true;
+  bool               _isCapturing  = false;
+  bool               _iaDisponible = false;
+
+  final List<String> _filtres = ['Toutes', 'Alertes', 'Analysées', 'En attente'];
+
+  // ── Filtrage ───────────────────────────────────────────────────────────────
+  List<CaptureImage> get _imgsFiltrees {
+    switch (_filtre) {
+      case 'Alertes':    return _images.where((i) => i.statut == 'alerte').toList();
+      case 'Analysées':  return _images.where((i) => i.statut == 'analysee').toList();
+      case 'En attente': return _images.where((i) => i.statut == 'en_attente').toList();
+      default:           return _images;
+    }
+  }
+
+  int get _alertesCount => _images.where((i) => i.statut == 'alerte').length;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitial();
+  }
+
+  // ── Chargement initial ─────────────────────────────────────────────────────
+  Future<void> _loadInitial() async {
+    setState(() => _isLoading = true);
+    try {
+      final capteurService = context.read<CapteurService>();
+      final iaService      = context.read<IaService>();
+
+      final results = await Future.wait([
+        capteurService.getCapteurs(),
+        iaService.isDisponible(),
+      ]);
+
+      final capteurs     = results[0] as List<CapteurModel>;
+      final iaDisponible = results[1] as bool;
+
+      setState(() {
+        _capteurs     = capteurs;
+        _iaDisponible = iaDisponible;
+        if (capteurs.isNotEmpty) _capteurSel = capteurs.first;
+      });
+
+      if (_capteurSel != null) await _loadImages(_capteurSel!);
+    } catch (e) {
+      _showError('Erreur de chargement : $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ── GET /api/images/:capteur_id ────────────────────────────────────────────
+  Future<void> _loadImages(CapteurModel capteur) async {
+    setState(() => _isLoading = true);
+    try {
+      final imageService = context.read<ImageService>();
+      // Le tri est déjà fait dans ImageService.getImagesCapteur()
+      final images = await imageService.getImagesCapteur(capteur);
+      if (mounted) setState(() => _images = images);
+    } catch (e) {
+      _showError('Impossible de charger les images : $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ── POST /api/capturer + polling ───────────────────────────────────────────
+  Future<void> _prendreImage() async {
+    if (_capteurSel == null || _isCapturing) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Déclencher une capture',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        content: Text(
+          'Demander une photo à ${_capteurSel!.nom} maintenant ?',
+          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler',
+                style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Capturer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _isCapturing = true);
+    try {
+      // TODO: POST /api/capturer + polling GET /api/capturer/:job_id
+      // Voir ApiConfig.capturer et ApiConfig.capturerStatut(jobId)
+      await Future.delayed(const Duration(seconds: 3));
+      await _loadImages(_capteurSel!);
+      _showSuccess('Capture déclenchée sur ${_capteurSel!.nom}');
+    } catch (e) {
+      _showError('Erreur capture : $e');
+    } finally {
+      if (mounted) setState(() => _isCapturing = false);
+    }
+  }
+
+  void _showSuccess(String msg) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg, style: const TextStyle(fontSize: 13)),
+          backgroundColor: AppColors.green700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(14),
+        ),
+      );
+
+  void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg, style: const TextStyle(fontSize: 13)),
+          backgroundColor: AppColors.red600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(14),
+        ),
+      );
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Images & capteurs'),
+            Text('Analyse visuelle du champ',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          ],
+        ),
+        actions: [
+          // Badge statut IA
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Tooltip(
+              message: _iaDisponible ? 'IA en ligne' : 'IA hors ligne',
+              child: Icon(
+                Icons.psychology_outlined,
+                color: _iaDisponible
+                    ? AppColors.green600
+                    : AppColors.textMuted,
+                size: 20,
+              ),
+            ),
+          ),
+          // Bouton IA + badge alertes
+          if (_alertesCount > 0)
+            Stack(children: [
+              IconButton(
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(
+                        builder: (_) => const AnalyseIaScreen())),
+                icon: const Icon(Icons.auto_awesome_outlined,
+                    color: AppColors.green700),
+              ),
+              Positioned(
+                top: 6, right: 6,
+                child: Container(
+                  width: 16, height: 16,
+                  decoration: const BoxDecoration(
+                      color: AppColors.red600, shape: BoxShape.circle),
+                  child: Center(
+                    child: Text('$_alertesCount',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+            ]),
+          // Rafraîchir
+          IconButton(
+            onPressed: _capteurSel == null
+                ? null
+                : () => _loadImages(_capteurSel!),
+            icon: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                  color: AppColors.green100,
+                  borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.refresh,
+                  color: AppColors.green700, size: 17),
+            ),
+          ),
+          // Historique
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => HistoriqueImagesScreen(images: _images)),
+            ),
+            icon: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                  color: AppColors.green100,
+                  borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.history,
+                  color: AppColors.green700, size: 18),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: _isLoading && _capteurs.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: () => _capteurSel != null
+                  ? _loadImages(_capteurSel!)
+                  : _loadInitial(),
+              color: AppColors.green600,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    // ── Sélecteur capteurs ─────────────────────────────
+                    if (_capteurs.isNotEmpty)
+                      SizedBox(
+                        height: 38,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _capteurs.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 7),
+                          itemBuilder: (_, i) {
+                            final c     = _capteurs[i];
+                            final sel   = _capteurSel?.id == c.id;
+                            final actif = c.etat == 'actif';
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() => _capteurSel = c);
+                                _loadImages(c);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: sel
+                                      ? (actif
+                                          ? AppColors.green100
+                                          : AppColors.amber100)
+                                      : AppColors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: sel
+                                        ? (actif
+                                            ? AppColors.green600
+                                            : AppColors.amber600)
+                                        : AppColors.border,
+                                    width: sel ? 1.5 : 0.5,
+                                  ),
+                                ),
+                                child: Row(children: [
+                                  Text(
+                                    c.nom,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: sel
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                      color: sel
+                                          ? (actif
+                                              ? AppColors.green700
+                                              : AppColors.amber800)
+                                          : AppColors.textMuted,
+                                    ),
+                                  ),
+                                  if (!actif) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      width: 6, height: 6,
+                                      decoration: const BoxDecoration(
+                                          color: AppColors.amber600,
+                                          shape: BoxShape.circle),
+                                    ),
+                                  ],
+                                ]),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                    const SizedBox(height: 14),
+
+                    // ── Carte capteur sélectionné ──────────────────────
+                    if (_capteurSel != null)
+                      _CapteurInfoCard(
+                        capteur:    _capteurSel!,
+                        imageCount: _images.length,
+                        alerteCount: _alertesCount,
+                        isCapturing: _isCapturing,
+                        onCapture:  _prendreImage,
+                      ),
+
+                    if (_capteurs.isEmpty) _buildEmpty(),
+
+                    const SizedBox(height: 16),
+
+                    // ── Filtres + grille ───────────────────────────────
+                    if (_images.isNotEmpty || _isLoading) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const SectionLabel('Dernières captures'),
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => HistoriqueImagesScreen(
+                                        images: _images)),
+                            ),
+                            child: const Text('Voir tout',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.green700)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Filtres
+                      SizedBox(
+                        height: 32,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _filtres.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 7),
+                          itemBuilder: (_, i) {
+                            final f   = _filtres[i];
+                            final sel = _filtre == f;
+                            return GestureDetector(
+                              onTap: () => setState(() => _filtre = f),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 13, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: sel
+                                      ? AppColors.green100
+                                      : AppColors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: sel
+                                          ? AppColors.green600
+                                          : AppColors.border,
+                                      width: sel ? 1.5 : 0.5),
+                                ),
+                                child: Text(f,
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: sel
+                                            ? FontWeight.w500
+                                            : FontWeight.normal,
+                                        color: sel
+                                            ? AppColors.green700
+                                            : AppColors.textMuted)),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      if (_isLoading)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_imgsFiltrees.isEmpty)
+                        _buildEmptyFilter()
+                      else
+                        _buildGrille(),
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    // ── Bannière IA ────────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const SectionLabel('Analyse IA'),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AnalyseIaScreen())),
+                          child: const Text('Voir tout',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.green700)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _IaBannerCard(
+                      iaDisponible: _iaDisponible,
+                      alertesCount: _alertesCount,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AnalyseIaScreen()),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  // ── Grille images ──────────────────────────────────────────────────────────
+  Widget _buildGrille() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount:    2,
+          crossAxisSpacing:  9,
+          mainAxisSpacing:   9,
+          childAspectRatio:  0.95),
+      itemCount: _imgsFiltrees.length,
+      itemBuilder: (ctx, i) {
+        final img = _imgsFiltrees[i];
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            ctx,
+            MaterialPageRoute(
+              builder: (_) => DetailImageScreen(image: img),
+            ),
+          ),
+          // ✅ img.imageUrl est déjà calculé dans CaptureImage.fromJson()
+          // on n'appelle PLUS buildImageUrl() ici
+          child: _ImageCard(image: img),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmpty() => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.amber100.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.amber600.withOpacity(0.3)),
+        ),
+        child: const Row(children: [
+          Icon(Icons.info_outline, color: AppColors.amber800, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Aucun capteur disponible. Ajoutez des capteurs depuis la page Carte.',
+              style: TextStyle(fontSize: 12, color: AppColors.amber800),
+            ),
+          ),
+        ]),
+      );
+
+  Widget _buildEmptyFilter() => Container(
+        margin: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border, width: 0.5)),
+        child: Center(
+          child: Text(
+            'Aucune image pour le filtre "$_filtre".',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+        ),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _CapteurInfoCard
+// ─────────────────────────────────────────────────────────────────────────────
+class _CapteurInfoCard extends StatelessWidget {
+  final CapteurModel capteur;
+  final int          imageCount;
+  final int          alerteCount;
+  final bool         isCapturing;
+  final VoidCallback onCapture;
+
+  const _CapteurInfoCard({
+    required this.capteur,
+    required this.imageCount,
+    required this.alerteCount,
+    required this.isCapturing,
+    required this.onCapture,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isActif  = capteur.etat == 'actif';
+    final batterie = capteur.batterie ?? 100;
+    final batColor = batterie > 40
+        ? AppColors.green600
+        : batterie > 20
+            ? AppColors.amber600
+            : AppColors.red600;
+
+    return AppCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Expanded(
+            child: Text(capteur.nom,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.text)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+                color: isActif ? AppColors.green100 : AppColors.gray50,
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(
+              isActif ? 'Actif' : 'Inactif',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: isActif
+                      ? AppColors.green700
+                      : AppColors.textMuted),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          _StatPill(
+              icon: Icons.battery_full,
+              color: batColor,
+              value: '$batterie%'),
+          const SizedBox(width: 8),
+          _StatPill(
+              icon: Icons.photo_library_outlined,
+              color: AppColors.green600,
+              value: '$imageCount image${imageCount > 1 ? "s" : ""}'),
+          if (alerteCount > 0) ...[
+            const SizedBox(width: 8),
+            _StatPill(
+                icon: Icons.warning_amber_outlined,
+                color: AppColors.red600,
+                value:
+                    '$alerteCount alerte${alerteCount > 1 ? "s" : ""}'),
+          ],
+        ]),
+        // ✅ derniereConnexion en camelCase (convention Dart)
+        if (capteur.derniereConnexion != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Dernière connexion : ${_formatDate(capteur.derniereConnexion!)}',
+            style:
+                const TextStyle(fontSize: 10, color: AppColors.textMuted),
+          ),
+        ],
+        const SizedBox(height: 11),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: isActif && !isCapturing ? onCapture : null,
+            icon: isCapturing
+                ? const SizedBox(
+                    width: 14, height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.camera_alt_outlined, size: 15),
+            label: Text(isCapturing
+                ? 'Capture en cours…'
+                : 'Prendre une image maintenant'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green600,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppColors.green200,
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              textStyle: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  String _formatDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/'
+          '${d.month.toString().padLeft(2, '0')} à '
+          '${d.hour.toString().padLeft(2, '0')}h'
+          '${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _StatPill
+// ─────────────────────────────────────────────────────────────────────────────
+class _StatPill extends StatelessWidget {
+  final IconData icon;
+  final Color    color;
+  final String   value;
+  const _StatPill(
+      {required this.icon, required this.color, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(value,
+            style: TextStyle(
+                fontSize: 11,
+                color: color,
+                fontWeight: FontWeight.w500)),
+      ]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _IaBannerCard
+// ─────────────────────────────────────────────────────────────────────────────
+class _IaBannerCard extends StatelessWidget {
+  final bool         iaDisponible;
+  final int          alertesCount;
+  final VoidCallback onTap;
+
+  const _IaBannerCard({
+    required this.iaDisponible,
+    required this.alertesCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+                color: iaDisponible
+                    ? AppColors.green100
+                    : AppColors.gray50,
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.psychology_outlined,
+                color: iaDisponible
+                    ? AppColors.green600
+                    : AppColors.textMuted,
+                size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Row(children: [
+                Text(
+                  iaDisponible ? 'IA disponible' : 'IA hors ligne',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.text),
+                ),
+                if (alertesCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: AppColors.red100,
+                        borderRadius: BorderRadius.circular(20)),
+                    child: Text(
+                        '$alertesCount alerte${alertesCount > 1 ? "s" : ""}',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.red800)),
+                  ),
+                ],
+              ]),
+              Text(
+                iaDisponible
+                    ? 'Analyser, diagnostiquer, prédire les cultures'
+                    : 'Vérifiez la connexion au serveur Flask',
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textMuted),
+              ),
+            ]),
+          ),
+          const Icon(Icons.chevron_right,
+              color: AppColors.textMuted, size: 18),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _ImageCard — vignette grille
+// ─────────────────────────────────────────────────────────────────────────────
+class _ImageCard extends StatelessWidget {
+  final CaptureImage image;
+  // ✅ Plus de paramètre imageUrl séparé — on utilise directement image.imageUrl
+  const _ImageCard({required this.image});
+
+  Color get _badgeBg {
+    switch (image.statut) {
+      case 'alerte':     return AppColors.red100;
+      case 'analysee':   return AppColors.green100;
+      case 'en_attente': return AppColors.amber100;
+      default:           return const Color(0xFFF5F7F2);
+    }
+  }
+
+  Color get _badgeColor {
+    switch (image.statut) {
+      case 'alerte':     return AppColors.red800;
+      case 'analysee':   return AppColors.green700;
+      case 'en_attente': return AppColors.amber800;
+      default:           return AppColors.textMuted;
+    }
+  }
+
+  String get _badgeLabel {
+    switch (image.statut) {
+      case 'alerte':     return 'Alerte';
+      case 'analysee':   return 'Analysée';
+      case 'en_attente': return 'En attente';
+      default:           return 'Reçue';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(fit: StackFit.expand, children: [
+        // ✅ image.imageUrl est déjà la bonne URL construite par fromJson()
+        Image.network(
+          image.imageUrl,
+          fit: BoxFit.cover,
+          loadingBuilder: (_, child, p) => p == null
+              ? child
+              : Container(
+                  color: AppColors.green100,
+                  child: const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.green600, strokeWidth: 2))),
+          errorBuilder: (_, __, ___) => Container(
+              color: AppColors.green100,
+              child: const Center(
+                  child: Icon(Icons.image_not_supported_outlined,
+                      color: AppColors.green600, size: 32))),
+        ),
+
+        // Gradient bas
+        Positioned(
+          bottom: 0, left: 0, right: 0,
+          child: Container(
+            height: 70,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.7),
+                ],
+                begin: Alignment.topCenter,
+                end:   Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ),
+
+        // Badge statut
+        Positioned(
+          top: 7, right: 7,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+                color: _badgeBg.withOpacity(0.92),
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(_badgeLabel,
+                style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: _badgeColor)),
+          ),
+        ),
+
+        // Icône alerte
+        if (image.statut == 'alerte')
+          const Positioned(
+              top: 7, left: 7,
+              child: Icon(Icons.warning_amber_rounded,
+                  color: AppColors.red600, size: 18)),
+
+        // Spinner en attente
+        if (image.statut == 'en_attente')
+          const Positioned(
+              top: 10, left: 10,
+              child: SizedBox(
+                  width: 14, height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.amber600))),
+
+        // Info bas
+        Positioned(
+          bottom: 7, left: 8, right: 8,
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(image.capteurNom,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text(
+                  '${image.dateFormatee} · ${image.heureFormatee}',
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 9),
+                ),
+              ]),
+        ),
+      ]),
+    );
+  }
 }

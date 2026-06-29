@@ -9,9 +9,12 @@ import 'services/seuil_service.dart';
 import 'services/utilisateur_service.dart';
 import 'services/champ_service.dart';
 import 'services/mesure_service.dart';
+import 'package:agrisense/services/ia_service.dart'; 
 import 'auth/login_page.dart';
 import 'app_colors.dart';
 import 'config/api_config.dart';
+import 'auth/onboarding_page.dart';
+
 
 import 'interfaces/tableau_de_bord/tableau_page.dart';
 import 'interfaces/carte/carte_page.dart';
@@ -20,16 +23,17 @@ import 'interfaces/irrigation/monitoring_page.dart';
 import 'interfaces/images/images_page.dart';
 import 'interfaces/profil/profil_page.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await ApiConfig.init(); // charge l'override d'IP sauvegardé localement
+  await ApiConfig.init();
   debugPrint('🔧 ApiConfig.baseUrl utilisée par les services : ${ApiConfig.baseUrl}');
 
   final authService = AuthService();
-  await authService.init(); // charge token + vérifie backend
+  await authService.init();
 
-  final token = authService.token; // token valide ou null
+  final token = authService.token;
 
   runApp(
     MultiProvider(
@@ -60,7 +64,6 @@ void main() async {
           create: (_) => ChampService(baseUrl: ApiConfig.baseUrl, authService: authService),
           update: (_, auth, champ) => champ!,
         ),
-
         ChangeNotifierProxyProvider<AuthService, MesureService>(
           create: (_) => MesureService(token: token),
           update: (_, auth, mesure) {
@@ -68,11 +71,14 @@ void main() async {
             return mesure!;
           },
         ),
-
         ProxyProvider<AuthService, ImageService>(
           create: (_) => ImageService(authService: authService),
           update: (_, auth, image) => image!,
-),
+        ),
+        // ── AJOUT : IaService manquant ───────────────────────────────────
+        Provider<IaService>(
+          create: (_) => const IaService(), // utilise iaBaseUrl par défaut (127.0.0.1:5000)
+        ),
       ],
       child: const AgriSenseApp(),
     ),
@@ -129,18 +135,31 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthService>(
-      builder: (context, auth, _) {
-        if (auth.isLoading) return const _SplashScreen();
-        if (!auth.isLoggedIn) return const LoginScreen();
-        return KeyedSubtree(
-          key: ValueKey(auth.user!.id),
-          child: const MainShell(),
+    return FutureBuilder<bool>(
+      future: OnboardingScreen.dejaVu(),
+      builder: (context, snapshot) {
+        // En attente de la lecture de SharedPreferences
+        if (!snapshot.hasData) return const _SplashScreen();
+
+        // Premier lancement → onboarding, PAS encore l'auth
+        if (snapshot.data == false) return const OnboardingScreen();
+
+        // Onboarding déjà vu → flux normal d'authentification
+        return Consumer<AuthService>(
+          builder: (context, auth, _) {
+            if (auth.isLoading) return const _SplashScreen();
+            if (!auth.isLoggedIn) return const LoginScreen();
+            return KeyedSubtree(
+              key: ValueKey(auth.user!.id),
+              child: const MainShell(),
+            );
+          },
         );
       },
     );
   }
 }
+
 
 // ─── Splash ───────────────────────────────────────────────────────────────────
 class _SplashScreen extends StatelessWidget {
